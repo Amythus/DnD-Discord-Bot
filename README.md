@@ -47,9 +47,9 @@ optional:
 
 ---
 
-                      MASTER D&D DISCORD BOT FLOWCHART (MONGO + BEANIE + CACHE + JINJA2)
-
-  [ 1. INITIAL SESSION & CHARACTER SEEDING LOOP ]
+                      
+                MASTER D&D DISCORD BOT FLOWCHART (MONGO + BEANIE + CACHE + JINJA2)
+                  [ 1. INITIAL SESSION & CHARACTER SEEDING LOOP ]
   
      [ D&D Beyond Sheet URL ]                         [ Google Drive Campaign Module Link ]
                  │                                                      │
