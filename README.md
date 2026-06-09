@@ -16,22 +16,29 @@ The bot uses a multi-model AI pipeline with MongoDB to track game state and Gemi
   - Motor: The underlying asynchronous driver for MongoDB.
 - AI/LLM Integration: google-genai (Google Gemini SDK).
 - Configuration & Validation: pydantic and pydantic-settings for robust environment variable management (supporting .env files).
-- Templating: Jinja2 (likely used for dynamic prompt or response formatting).
+- Templating: Jinja2 (used for dynamic prompt and response formatting).
 - Runtime: asyncio for non-blocking I/O operations, which is essential for handling multiple Discord events concurrently.
 
 ---
 
+## Dependencies
+- MongoDB: Used for database operations, with pymongo and motor as drivers.
+- Beanie: An asynchronous ORM for MongoDB, used in conjunction with Motor.
+- Pydantic: A data validation and settings management library, used for configuration management.
+- Discord.py: A Python wrapper for the Discord API, used to create a bot.
+- pydantic-settings: Extends Pydantic to manage application settings from environment variables.
+- google-genai: Presumably a client for Google's GenAI services.
+- Jinja2: A templating engine for generating dynamic content.
+
 ## Required Environment Variables
 
-<!-- - `DISCORD_BOT_TOKEN` - generate from Discord Developer Portal (remember to turn on Priveleged Gateway Intents ie. presence, server members, message content)
-- `WHITELIST_CHANNEL_IDS` - only listens to specific channels, enter developer mode in discord and right click channel
-- `MONGO_URI` - mongodb://admin_dm:super_secret_password_here@mongodb:27017/dnd_bot?authSource=admin
-- `GEMINI_API_KEY` - Google AI Studio API Key
-- `DND_DDB_PARSER_ID` - model id for DnD Beyond and Module Ingestion
-- `DND_CHAT_PARSER_ID` - model id for your chat parser model
-- `DND_RULE_ID` - model id for rule keeper model
-- `DND_NARRATOR_ID` - model id for your narrator model -->
+- `DISCORD_BOT_TOKEN`: Your Discord bot token.
+- `MONGO_URI`: The connection URI for your MongoDB database.
+- `GOOGLE_API_KEY`: Your Google API key for accessing GenAI services.
 
+
+optional:
+- `WHITELIST_CHANNEL_IDS` - a comma-separated list of Discord channel IDs where the bot is allowed to operate.
 ---
 
 ## Quick Start
