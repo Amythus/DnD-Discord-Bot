@@ -92,7 +92,9 @@ How to construct Payload
 
                         D&D DISCORD BOT: METADATA & SESSION DELTA LOOP ARCHITECTURE
 
-  [ 1. CHARACTER SHEET LOAD / SESSION SETUP ]
+---
+
+                    [ 1. CHARACTER SHEET LOAD / SESSION SETUP ]
   
      [ D&D Beyond URL Link ]                          [ Google Drive Module Link ]
                │                                                    │
