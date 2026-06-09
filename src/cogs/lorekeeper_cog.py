@@ -7,3 +7,6 @@ class LorekeeperCog(commands.Cog):
         self.bot = bot
         # The Gemini client instantly gains access to your card-authenticated token key
         self.client = genai.Client(api_key=settings.gemini_api_key)
+
+async def setup(bot):
+    await bot.add_cog(LorekeeperCog(bot))

@@ -1,12 +1,24 @@
-version: '3.8'
-
+# services:
+#   discord_bot:
+#     build: .
+#     container_name: dnd_discord_bot
+#     restart: unless-stopped
+#     env_file:
+#       - .env 
+#     depends_on:
+#       database_service:
+#         condition: service_started
+#     networks:
+#       - dnd_shared_network
 services:
   discord_bot:
     build: .
     container_name: dnd_discord_bot
     restart: unless-stopped
+    env_file:
+      - .env 
     networks:
-      - dnd_shared_network # Both containers must occupy this exact network channel
+      - dnd_shared_network
 
 networks:
   dnd_shared_network:

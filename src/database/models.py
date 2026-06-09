@@ -104,7 +104,7 @@ class CharacterSheet(Document):
     class Settings:
         name = "characters"
         indexes = [[("channel_id", 1), ("player_id", 1)]]
-        ]
+    
 
 class GameSession(Document):
     """Maintains the active runtime, turn structures, and state flags for a game thread."""
@@ -120,3 +120,5 @@ class GameSession(Document):
 
     class Settings:
         name = "game_sessions"
+
+

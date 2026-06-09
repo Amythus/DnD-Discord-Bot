@@ -2,32 +2,40 @@
 
 An AI-driven Dungeon Master bot for Discord that allows players bring their own character sheets from DnD Beyond, play D&D modules, and roleplay without needing an experienced human Dungeon Master!
 
-The bot uses a 2-model pipeline with MongoDB to track game state and Gemini 3.1 Flash Lite for context caching and swift replies.
+The bot uses a multi-model AI pipeline with MongoDB to track game state and Gemini 3.1 Flash Lite for context caching and swift replies.
 
 ---
 
 ## Technical Stack
 
-
+- Language: Python 3
+- Discord Framework: discord.py (utilizing the commands.Bot framework with a Cog-based modular architecture).
+- Database & ODM:
+  - MongoDB: NoSQL database for persistence.
+  - Beanie: An asynchronous ODM (Object Document Mapper) built on top of motor and pydantic.
+  - Motor: The underlying asynchronous driver for MongoDB.
+- AI/LLM Integration: google-genai (Google Gemini SDK).
+- Configuration & Validation: pydantic and pydantic-settings for robust environment variable management (supporting .env files).
+- Templating: Jinja2 (likely used for dynamic prompt or response formatting).
+- Runtime: asyncio for non-blocking I/O operations, which is essential for handling multiple Discord events concurrently.
 
 ---
 
 ## Required Environment Variables
 
-- `DISCORD_BOT_TOKEN` - generate from Discord Developer Portal (remember to turn on Priveleged Gateway Intents ie. presence, server members, message content)
+<!-- - `DISCORD_BOT_TOKEN` - generate from Discord Developer Portal (remember to turn on Priveleged Gateway Intents ie. presence, server members, message content)
 - `WHITELIST_CHANNEL_IDS` - only listens to specific channels, enter developer mode in discord and right click channel
 - `MONGO_URI` - mongodb://admin_dm:super_secret_password_here@mongodb:27017/dnd_bot?authSource=admin
 - `GEMINI_API_KEY` - Google AI Studio API Key
 - `DND_DDB_PARSER_ID` - model id for DnD Beyond and Module Ingestion
 - `DND_CHAT_PARSER_ID` - model id for your chat parser model
 - `DND_RULE_ID` - model id for rule keeper model
-- `DND_NARRATOR_ID` - model id for your narrator model
+- `DND_NARRATOR_ID` - model id for your narrator model -->
 
 ---
 
-## Initialization
-- `docker compose up --build` - run docker command to start bot - requires external MongoDB
- - Bot begins listening for messages on specific discord channels
+## Quick Start
+- `./deploy.sh` - deployment command, creates network between Bot container and MongoDB container
 
 ---
 
@@ -64,6 +72,7 @@ The bot uses a 2-model pipeline with MongoDB to track game state and Gemini 3.1 
                        • System initializes local room states and primes the game loops.
                                            │
                                            ▼
+                            [ 2. ACTIVE RUNTIME TACTICAL LOOP ]
 =========================================================================================================
   [ 2. ACTIVE RUNTIME TACTICAL LOOP ]
   

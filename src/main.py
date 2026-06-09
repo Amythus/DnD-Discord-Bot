@@ -1,6 +1,7 @@
 import os
 import asyncio
 import discord
+import sys
 from discord.ext import commands
 from database.connection import init_database
 from config.settings import settings
@@ -27,13 +28,28 @@ async def load_extensions():
 
 async def main():
     # 1. Boot up the MongoDB & Beanie mapping connection layer
-    await init_database(settings.mongo_uri)
+    try:
+        db_success = await init_database(settings.mongo_uri)
+        if not db_success:
+            raise ConnectionError("MongoDB initialization returned False.")
+    except Exception as e:
+        print(f"❌ CRITICAL BOOT FAILURE: {e}", file=sys.stderr)
+        return
     
     # 2. Register all game loop cogs
     await load_extensions()
     
     # 3. Connect to the Discord Gateway
-    await bot.start(settings.discord_bot_token)
+    try:
+        await bot.start(settings.discord_bot_token)
+    except discord.LoginFailure:
+        print("❌ CRITICAL AUTHENTICATION FAILURE: Provided DISCORD_BOT_TOKEN is invalid.", file=sys.stderr)
+    except Exception as e:
+        print(f"❌ CRITICAL CONNECTIVITY CRASH during bot initialization: {e}", file=sys.stderr)
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n👋 Shutdown signal intercepted. Closing all network connections cleanly.")
