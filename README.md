@@ -90,9 +90,7 @@ How to construct Payload
 
 ---
 
-<!-- ========================================================================================================= -->
                         D&D DISCORD BOT: METADATA & SESSION DELTA LOOP ARCHITECTURE
-<!-- ========================================================================================================= -->
 
   [ 1. CHARACTER SHEET LOAD / SESSION SETUP ]
   
@@ -119,7 +117,9 @@ How to construct Payload
                      • System is now primed and ready for player turns.
                                          │
                                          ▼
-<!-- ========================================================================================================= -->
+
+---
+
   [ 2. ACTIVE TACTICAL GAMEPLAY LOOP ]
   
                                   [ PLAYER CHAT INPUT ]
@@ -195,49 +195,3 @@ How to construct Payload
 - cache character sheets at start of session
 - add Discord.ui.View and discrod.ui.Button in game_loop cog
 - use Jinja2 to pass alone old_state, new_state, and action to from python engine -> dm_narrator
-
-
-
----
-
-File Structure
-
-dnd-discord-bot/
-├── .env                       # Local developer API keys (never commit to git)
-├── .gitignore                 # Excludes node_modules, .env, __pycache__, volumes
-├── docker-compose.yml         # Container configuration file
-├── Dockerfile                 # Image build instructions for your Python bot
-├── requirements.txt           # Pip dependencies (discord.py, beanie, motor, google-genai, jinja2)
-├── README.md                  # System flowchart and documentation
-│
-└── src/                       # Master application directory
-    ├── __init__.py
-    ├── main.py                # Bot entrance file (initializes Discord, Motor, & Beanie)
-    │
-    ├── config/                # Environment and settings configuration
-    │   ├── __init__.py
-    │   └── settings.py        # Loads and validates environment variables
-    │
-    ├── database/              # Beanie ODM schemas & database connections
-    │   ├── __init__.py
-    │   ├── connection.py      # Contains the init_database() function
-    │   └── models.py          # CharacterSheet, GameSession, CampaignModule schemas
-    │
-    ├── cogs/                  # Discord application feature separation
-    │   ├── __init__.py
-    │   ├── setup_cog.py       # Handles /load_module and /join_session commands
-    │   ├── status_cog.py      # Handles !status and character profile display
-    │   ├── action_cog.py      # Core In-Character tactical game & rolling buttons loop
-    │   └── lorekeeper_cog.py  # Out-of-Character @bot mention reference assistant
-    │
-    ├── services/              # External heavy business logic handlers
-    │   ├── __init__.py
-    │   ├── ddb_parser.py      # The LLM Smart Parser script for D&D Beyond sheets and google drive modules [MarkItDown or Document Understanding API] for downloading and converting into markdown and then LLM to map out into json based of schema
-    │   ├── gemini_client.py   # Handles the connection client & token cache updates
-    │   └── game_engine.py     # Pure game calculation helper routines (e.g., dice rolls)
-    │
-    └── templates/             # Prompt engineering file directory
-        ├── narrator_prompt.j2 # Jinja2 storytelling prompt template
-        └── rule_check.j2      # Jinja2 tactical evaluation mechanics prompt
-
----
