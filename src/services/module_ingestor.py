@@ -13,6 +13,7 @@ class ParsedRoom(pydantic.BaseModel):
     room_title: str
     environmental_hazards: List[str]
     mechanics_override_json: Dict[str, str]
+    exits: Dict[str, str] # e.g., {"north": "room_05", "south": "room_02"}
     flavor_text: str
 
 class ParsedModuleSchema(pydantic.BaseModel):
@@ -73,6 +74,7 @@ async def stream_and_structure_module(module_slug: str, gdrive_url: str):
             room_title=parsed_room.room_title,
             environmental_hazards=parsed_room.environmental_hazards,
             mechanics_override_json=parsed_room.mechanics_override_json,
+            exits=parsed_room.exits_json,
             flavor_text=parsed_room.flavor_text
         )
         await room_doc.insert()

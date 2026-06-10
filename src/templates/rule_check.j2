@@ -52,3 +52,26 @@ You must respond strictly in JSON format matching this identical parameter archi
   "roll_required": "The exact title string of the D&D skill or tool check required",
   "target_dc": integer
 }
+
+[VALID POI DESTINATIONS FOR THIS HUB]
+The characters are currently in an open-ended environment hub. The following named destinations are the ONLY valid locations they can travel to next from here:
+{% for destination, target in room.exits.items() -%}
+- {{ destination | uppercase }}: Maps to database reference key "{{ target }}"
+{% endfor %}
+
+[PLAYER ACTION ATTEMPT]
+The player states: "{{ player_action }}"
+
+[OPEN-WORLD NAVIGATION LAW]
+If the player states they want to leave, travel, or go somewhere, analyze their intent text. 
+If they name a location that is NOT a semantic or conceptual match to one of the [VALID POI DESTINATIONS] listed above, evaluate 'action_valid' as false. Set 'rejection_reason' to politely state that the location is not accessible from here.
+
+[OUTPUT FORM SCHEMA MANDATE]
+Respond strictly in JSON format:
+{
+  "action_valid": boolean,
+  "rejection_reason": "State 'You cannot reach the King's Castle directly from this tavern. You would need to head to the Market Square or Docks first.' if applicable",
+  "roll_required": "None",
+  "target_dc": 0,
+  "move_to_room_id": "Output the string database target key (e.g. 'zone_neverwinter_docks') ONLY if they successfully traveled, otherwise empty string"
+}

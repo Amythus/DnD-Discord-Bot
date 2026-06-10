@@ -2,10 +2,20 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from beanie import Document, Link
 from pydantic import BaseModel, Field
+from collections import defaultdict
+
 
 # ==============================================================================
 # 1. PYDANTIC SUB-STRUCTURES (Reusable embedded data blocks)
 # ==============================================================================
+
+class ActiveBuff(BaseModel):
+    """Tracks a dynamic mechanical buff, its dice modifier value, and what it applies to."""
+    buff_name: str                      # e.g., "Bless", "Guidance", "Shield of Faith"
+    dice_modifier: str = "0"            # e.g., "1d4" for Bless, "0" if flat bonus
+    flat_ac_bonus: int = 0              # e.g., 2 for Shield of Faith
+    applies_to: List[str]               # e.g., ["attack_rolls", "saving_throws", "skills"]
+    remaining_rounds: int = 10          # Automatic duration counter tracking
 
 class CharacterVitals(BaseModel):
     """Tracks active, runtime combat health parameters during a play session."""
@@ -17,6 +27,9 @@ class CharacterVitals(BaseModel):
     speed: int = 30
     initiative_bonus: int = 0
     active_conditions: List[str] = Field(default_factory=list) # ["Poisoned", "Prone"]
+    has_inspiration: bool = False         
+    has_heroic_inspiration: bool = False  
+    active_buffs: List[ActiveBuff] = Field(default_factory=list)
 
 class SpellSlots(BaseModel):
     """Tracks character spell slots. Maps slot tier to current allocation count."""
@@ -53,6 +66,9 @@ class RoomContext(Document):
     # Strict variables processed by the Rule Check Model
     environmental_hazards: List[str] = Field(default_factory=list) # ["200ft open chasm"]
     mechanics_override_json: Dict[str, str] = Field(default_factory=dict) # {"jump": "impossible"}
+
+     # Maps directions to target room IDs: {"north": "room_05_barracks", "east": "room_02_chasm"}
+    exits: Dict[str, str] = Field(default_factory=defaultdict)
     
     # Story text blocks reserved strictly for the DM Narrator Model
     flavor_text: str

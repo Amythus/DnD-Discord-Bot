@@ -9,6 +9,30 @@ class GameEngineService:
     """
 
     @staticmethod
+    def evaluate_active_buffs(vitals: Any, action_type: str) -> tuple[int, str]:
+        """
+        Sweeps the character's active buffs to find modifiers matching the current action.
+        Returns a tuple of (total_buff_bonus, math_breakdown_string).
+        """
+        total_bonus = 0
+        breakdown_parts = []
+        
+        # Action categories mapped from the Rule Check Model: "saving_throws", "attack_rolls", "skills"
+        for buff in vitals.active_buffs:
+            if action_type in buff.applies_to:
+                # Handle dice parsing strings (like '1d4' for Bless)
+                if buff.dice_modifier == "1d4":
+                    roll = random.randint(1, 4)
+                    total_bonus += roll
+                    breakdown_parts.append(f"+ {roll} ({buff.buff_name} [1d4])")
+                elif buff.dice_modifier == "1d6":
+                    roll = random.randint(1, 6)
+                    total_bonus += roll
+                    breakdown_parts.append(f"+ {roll} ({buff.buff_name} [1d6])")
+                    
+        return total_bonus, " ".join(breakdown_parts)
+
+    @staticmethod
     def calculate_modifier(ability_score: int) -> int:
         """
         Applies standard D&D 5e ability score modifier math.

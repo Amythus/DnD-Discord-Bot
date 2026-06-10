@@ -3,11 +3,13 @@ import json
 import random
 from collections import defaultdict
 from discord.ext import commands
+from discord import app_commands
 import discord
 
 from config.settings import settings
 from database.models import GameSession, CharacterSheet, RoomContext
 from services.gemini_client import gemini_service
+from services.game_engine import game_engine
 from google.genai import types
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -32,17 +34,15 @@ class SinglePlayerRollView(discord.ui.View):
         self.roll_type = roll_type
         self.target_dc = target_dc
         self.action_text = action_text
-        
-        # Track roll steps locally in memory cache
         self.first_roll = None
         self.final_total = None
 
+    # --- NARRATOR PIPELINE HANDOFF ---
+    # Compiles prompt templates and streams the tactical results to the Gemini Narrator.
     async def _execute_narrator_handoff(self, interaction: discord.Interaction, roll_summary: str, old_vitals):
-        """Compiles prompt templates and fires the long-context Gemini Narrator."""
         session = await GameSession.find_one(GameSession.channel_id == self.channel_id, fetch_links=True)
         character = await CharacterSheet.find_one(CharacterSheet.channel_id == self.channel_id, CharacterSheet.player_id == self.player_id)
         
-        # Render narrative prompt parameters via Jinja2
         template = jinja_env.get_template("narrator_prompt.j2")
         rendered_prompt = template.render(
             character=character,
@@ -52,7 +52,6 @@ class SinglePlayerRollView(discord.ui.View):
             old_vitals=old_vitals
         )
 
-        # Slide the long-context window forward to protect RAM allocation limits
         gemini_service.bump_context_cache_ttl(session.active_module.gemini_file_uri)
         client = gemini_service.get_client()
         module_file_handle = client.files.get(name=session.active_module.gemini_file_uri.split('/')[-1])
@@ -62,10 +61,11 @@ class SinglePlayerRollView(discord.ui.View):
             contents=[module_file_handle, rendered_prompt]
         )
         
-        # Dispatch final storytelling text blocks back to the Discord thread
         await interaction.followup.send(response.text)
         self.stop()
 
+    # --- STAGE 1: INITIAL DICE RESOLUTION ---
+    # Executes the primary d20 roll, evaluates active buffs, and locks or branches the loop.
     @discord.ui.button(label="🎲 CLICK TO ROLL", style=discord.ButtonStyle.primary, custom_id="single_roll_btn")
     async def initial_roll_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if str(interaction.user.id) != self.player_id:
@@ -79,19 +79,23 @@ class SinglePlayerRollView(discord.ui.View):
         
         d20 = random.randint(1, 20)
         self.first_roll = d20
-        total = d20 + modifier
         old_vitals = character.vitals.copy()
 
-        # PATH A: SUCCESS OR NO HEROIC INSPIRATION -> Lock the turn instantly
+        # RECONCILE DYNAMIC ACTIVE BUFFS
+        action_cat = "attack_rolls" if "Attack" in self.roll_type else "skills"
+        buff_bonus, buff_breakdown = game_engine.evaluate_active_buffs(character.vitals, action_cat)
+        
+        total = d20 + modifier + buff_bonus
+
+        # PATH A: SUCCESS OR NO HEROIC INSPIRATION -> Lock turn instantly
         if total >= self.target_dc or not character.vitals.has_heroic_inspiration:
             self.final_total = total
             button.disabled = True
             await interaction.message.edit(view=self)
             
             success_tag = "SUCCESS" if total >= self.target_dc else "FAILURE"
-            summary = f"{success_tag}! Rolled {d20} + {modifier} = {total} (vs DC {self.target_dc})"
+            summary = f"{success_tag}! Rolled {d20} + {modifier} (Base) {buff_breakdown} = {total} (vs DC {self.target_dc})"
             
-            # Apply standard fail environmental damage delta if applicable
             if total < self.target_dc:
                 current_hp = character.vitals.session_current_hp if character.vitals.session_current_hp is not None else character.vitals.base_max_hp
                 character.vitals.session_current_hp = max(0, current_hp - 4)
@@ -100,29 +104,25 @@ class SinglePlayerRollView(discord.ui.View):
             await interaction.followup.send(f"**Dice Result:** {character.character_name} rolled **{total}** ({summary}). Adjudicating scene...")
             await self._execute_narrator_handoff(interaction, summary, old_vitals)
         
-        # PATH B: FAILURE BUT HAS HEROIC INSPIRATION -> Morph UI View container layout to present choice
+        # PATH B: FAILURE BUT HAS HEROIC INSPIRATION -> Spawn 2024 option button
         else:
             button.disabled = True
-            
-            # Dynamically spawn the 2024 option button onto the active interface view
             reroll_btn = discord.ui.Button(label="⚡ ACTIVATE HEROIC REROLL", style=discord.ButtonStyle.danger, custom_id="single_heroic_btn")
             
-            # Inline callback execution logic for the dynamic reroll button
+            # --- STAGE 2: 2024 OVERWRITE CALLBACK ---
+            # Handles the post-roll 2024 overwrite loop, draining the inspiration flag from MongoDB.
             async def reroll_callback(inter: discord.Interaction):
-                if str(inter.user.id) != self.player_id: 
-                    return
+                if str(inter.user.id) != self.player_id: return
                 await inter.response.defer()
                 
-                # 2024 Rule Override Math Calculation
                 new_d20 = random.randint(1, 20)
-                new_total = new_d20 + modifier
+                b_bonus, b_breakdown = game_engine.evaluate_active_buffs(character.vitals, action_cat)
+                new_total = new_d20 + modifier + b_bonus
                 self.final_total = new_total
                 
-                # Close view layers
                 reroll_btn.disabled = True
                 await inter.message.edit(view=self)
                 
-                # Drain the 2024 Heroic Inspiration flag from MongoDB
                 character.vitals.has_heroic_inspiration = False
                 if new_total < self.target_dc:
                     current_hp = character.vitals.session_current_hp if character.vitals.session_current_hp is not None else character.vitals.base_max_hp
@@ -130,7 +130,7 @@ class SinglePlayerRollView(discord.ui.View):
                 await character.save()
                 
                 success_tag = "SUCCESS" if new_total >= self.target_dc else "FAILURE"
-                summary = f"{success_tag}! **Heroic Reroll:** {new_d20} + {modifier} = {new_total} (vs DC {self.target_dc}, Overwrote {self.first_roll})"
+                summary = f"{success_tag}! **Heroic Reroll:** {new_d20} + {modifier} (Base) {b_breakdown} = {new_total} (vs DC {self.target_dc}, Overwrote {self.first_roll})"
                 
                 await inter.followup.send(f"💥 **Heroic Reroll Triggered!** New Total: **{new_total}** ({summary})")
                 await self._execute_narrator_handoff(inter, summary, old_vitals)
@@ -138,120 +138,105 @@ class SinglePlayerRollView(discord.ui.View):
             reroll_btn.callback = reroll_callback
             self.add_item(reroll_btn)
             
-            # Update the parent message text to prompt the player for their decision
             await interaction.message.edit(
                 content=f"⚠️ **Check Failed!** You rolled a total of `{total}` (vs DC {self.target_dc}). Spend your Heroic Inspiration to completely overwrite this roll?", 
                 view=self
             )
 
+
 # ==============================================================================
-# CORE COG INTERACTION GATEWAY
+# REFACTORED CORE COG: SLASH COMMAND ENGINE
 # ==============================================================================
 class ActionCog(commands.Cog):
-    """Manages proactive, natural-language player actions and executes the Rule Check cycle."""
+    """Manages player-driven tactical turns via secure Discord Slash Commands."""
     def __init__(self, bot):
         self.bot = bot
-        # Thread-safe asyncio lock cache queue mapping channel IDs
         self.session_locks = defaultdict(asyncio.Lock)
 
-    @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        # 1. Pipeline Traffic Guards
-        if message.author.bot:
-            return
-        if message.content.startswith("!") or message.content.startswith("/") or self.bot.user.mentioned_in(message):
-            return
-        if message.content.strip().startswith("((") and message.content.strip().endswith("))"):
-            return
+    # --- CORE CORE TACTICAL ACTION GATEWAY ---
+    # Captures proactive text intents, runs strict rules evaluation via Gemini, and launches UI viewports.
+    @app_commands.command(name="action", description="Execute an in-character tactical action within your current room.")
+    @app_commands.describe(player_message="Describe exactly what your character attempts to do")
+    async def execute_action(self, interaction: discord.Interaction, player_message: str):
+        channel_id = str(interaction.channel_id)
+        player_id = str(interaction.user.id)
 
-        channel_id = str(message.channel.id)
-        player_id = str(message.author.id)
-
-        # 2. Concurrency queue lock engagement to stamp out race conditions
         async with self.session_locks[channel_id]:
-            
-            # Lookup structural game session fields
             session = await GameSession.find_one(GameSession.channel_id == channel_id, fetch_links=True)
             if not session:
-                return # Silence if room session hasn't been instantiated via /load_module
-
-            character = await CharacterSheet.find_one(
-                CharacterSheet.channel_id == channel_id,
-                CharacterSheet.player_id == player_id
-            )
-            if not character:
-                await message.reply("You haven't checked into this campaign yet! Use `/join_session` first.")
+                await interaction.response.send_message("❌ **Error:** No active session configured for this channel.", ephemeral=True)
                 return
 
-            room = await RoomContext.find_one(
-                RoomContext.module_slug == session.active_module.module_slug,
-                RoomContext.room_id == session.current_room_id
-            )
+            character = await CharacterSheet.find_one(CharacterSheet.channel_id == channel_id, CharacterSheet.player_id == player_id)
+            if not character:
+                await interaction.response.send_message("❌ **Error:** You haven't checked a character sheet into this campaign yet! Use `/join_session`.", ephemeral=True)
+                return
 
-            # 3. Compile and dispatch the Rule Check Prompt
+            await interaction.response.defer(thinking=True)
+
+            room = await RoomContext.find_one(RoomContext.module_slug == session.active_module.module_slug, RoomContext.room_id == session.current_room_id)
+
             rule_template = jinja_env.get_template("rule_check.j2")
             rendered_rule_prompt = rule_template.render(
                 character=character,
                 room=room,
-                player_action=message.content
+                player_action=player_message
             )
 
-            async with message.channel.typing():
-                client = gemini_service.get_client()
-                
-                # Define constraints schema mapping parameters for Gemini 3.1 Flash-Lite
-                response_schema = {
-                    "type": "OBJECT",
-                    "properties": {
-                        "action_valid": {"type": "BOOLEAN"},
-                        "rejection_reason": {"type": "STRING"},
-                        "roll_required": {"type": "STRING"},
-                        "target_dc": {"type": "INTEGER"}
-                    },
-                    "required": ["action_valid", "rejection_reason", "roll_required", "target_dc"]
-                }
+            client = gemini_service.get_client()
+            response_schema = {
+                "type": "OBJECT",
+                "properties": {
+                    "action_valid": {"type": "BOOLEAN"},
+                    "rejection_reason": {"type": "STRING"},
+                    "roll_required": {"type": "STRING"},
+                    "target_dc": {"type": "INTEGER"},
+                    "move_to_room_id": {"type": "STRING"}
+                },
+                "required": ["action_valid", "rejection_reason", "roll_required", "target_dc", "move_to_room_id"]
+            }
 
-                rule_response = client.models.generate_content(
-                    model=gemini_service.model_name,
-                    contents=[rendered_rule_prompt],
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json",
-                        response_schema=response_schema
-                        )
+            rule_response = client.models.generate_content(
+                model=gemini_service.model_name,
+                contents=[rendered_rule_prompt],
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=response_schema
                 )
-                decision = json.loads(rule_response.text)
+            )
 
-            # 4. Adjudicate results
+            decision = json.loads(rule_response.text)
+
             if not decision["action_valid"]:
-                await message.reply(f"❌ Action Denied: {decision['rejection_reason']}")
+                await interaction.followup.send(f"❌ Action Denied: {decision['rejection_reason']}")
                 return
-            # Action Approved: Instantiate the multi-stage single-player view state loop
+        
+            # Spatial Navigation Bypass: Direct node movement
+            if decision.get("move_to_room_id"):
+                session.current_room_id = decision["move_to_room_id"]
+                await session.save()
+            
+                summary = f"Character moves unhindered to destination location node: {decision['move_to_room_id']}"
+                view = SinglePlayerRollView(channel_id, player_id, "None", 0, player_message)
+
+                await interaction.followup.send(f"🏃 {character.character_name} moves to the next area...")
+                await view._execute_narrator_handoff(interaction, summary, character.vitals.copy())
+                return
+
             view = SinglePlayerRollView(
                 channel_id=channel_id,
                 player_id=player_id,
                 roll_type=decision["roll_required"],
                 target_dc=decision["target_dc"],
-                action_text=message.content
+                action_text=player_message
             )
-            
-            if "[AWARD_INSPIRATION:" in response.text:
-                # 1. Strip the tag from the narrative so players don't see raw system text
-                clean_story = re.sub(r'\[AWARD_INSPIRATION:.*?\]', '', response.text)
-                
-                # 2. Mutate MongoDB state natively via Beanie ODM
-                character.vitals.has_heroic_inspiration = True
-                await character.save()
-                
-                # 3. Inform the channel with a rich announcement card
-                await interaction.followup.send(clean_story)
-                await interaction.channel.send(f"✨ **Inspiration Earned!** The DM was moved by your roleplay. {character.character_name} gains Heroic Inspiration!")
 
-            
-        await message.reply(
-            f"🎲 Action Validated: {character.character_name} attempts to execute their action.\n"
-            f"Requires a DC {decision['target_dc']} {decision['roll_required']} check.",
-            view=view
-        )
-            
+            await interaction.followup.send(
+                f"🎲 Action Validated: {character.character_name} attempts their maneuver.\n"
+                f"Requires a DC {decision['target_dc']} {decision['roll_required']} check.",view=view
+            )
+                    
+                        
+
 async def setup(bot):
     await bot.add_cog(ActionCog(bot))
