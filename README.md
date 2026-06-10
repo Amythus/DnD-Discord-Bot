@@ -194,5 +194,5 @@ optional:
         # Proceed with logic...
 
 [] cache character sheets at start of session
-
-[] add Discord.ui.View and discrod.ui.Button in game_loop cog
+[] implement rule of cool nat 20 success override
+[] implement inspiration (gain advantage on next roll)
