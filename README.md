@@ -207,3 +207,18 @@ optional:
 [] setup payment for Gemini 3.1 Flash Lite - Pay As You Go (PAYG) plan to enable Context Caching
 [] setup Time-to-Live (TTL) so that it debounces for 30 minutes after every action
 [] clear Time-to-Live upon /end_session
+
+
+# How to Play
+
+## Commands
+- `/modules` - brings up modules that have been parsed into rooms and stored into database, select one to load it into active session
+- (feature)`/load_module <link>` - provide a google drive link to a module and it will be parsed and stored into database
+- `/join` - brings up a list of characters associated with your discord ID, select one to load it into the active session
+- `/import <link>` - imports the character from DnD Beyond and stores it in the database
+- `/start_session` - starts the session with the active character(s) and module
+- `/end_session` - ends the session and clears the active session
+- `@bot <question/action?>` - asks the bot a question about the current room/environment or stage an action, llm will parse intent and respond:
+  - If question, it will answer the question.
+  - If action, it will check if action is valid or not. If action is valid, dice button view will appear stating action, dice, and modifiers. Roll dice to comfirm action.
+- `/action <action>` perform an action that doesn't require staging, ie. "I want to drink a potion" or "I want to open the door"
