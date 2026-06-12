@@ -6,3 +6,4 @@ discord.py
 pydantic-settings
 google-genai
 Jinja2
+aiohttp

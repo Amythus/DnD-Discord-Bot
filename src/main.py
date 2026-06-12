@@ -18,6 +18,9 @@ async def on_ready():
     print(f"🎲 Logged in as {bot.user.name} (ID: {bot.user.id})")
     # Setting an active D&D status activity for player scannability
     await bot.change_presence(activity=discord.Game(name="D&D 5e (2024 Rulebook)"))
+    await bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
+    await bot.tree.sync()
 
 async def load_extensions():
     """
@@ -64,6 +67,40 @@ async def main():
         print("❌ CRITICAL AUTHENTICATION FAILURE: Provided DISCORD_BOT_TOKEN is rejected or invalid.", file=sys.stderr)
     except Exception as e:
         print(f"❌ CRITICAL CONNECTIVITY CRASH during bot initialization: {e}", file=sys.stderr)
+
+# =========================================================================
+# SYSTEM INFRASTRUCTURE: MASTER GLOBAL TREE SYNC CONTROL
+# =========================================================================
+@bot.command(name="sync")
+@commands.is_owner() # Protects your application endpoint from malicious user execution
+async def sync_application_commands(ctx: commands.Context):
+    """
+    Manually overrides and registers all local Cog slash commands configuration 
+    matrices directly up to the global Discord Gateway server.
+    """
+    await ctx.send("📡 *Initiating secure application command tree verification...*")
+    
+    try:
+        # Pushes all globally declared cog commands straight to the Discord API server
+        synced = await bot.tree.sync()
+        
+        # Output a descriptive text receipt back to your secure developer admin console channel
+        await ctx.send(
+            f"✅ **Global Command Tree Sync Complete!**\n"
+            f"Registered **{len(synced)} slash commands** globally across all shard profiles."
+        )
+        print(f"⚙️ Developer Sync Command executed manually by application owner. Synced: {len(synced)}")
+        
+    except discord.HTTPException as e:
+        await ctx.send(f"❌ Discord Gateway rejected the structural tree payload serialization: {e}")
+    except Exception as e:
+        await ctx.send(f"❌ Internal orchestration exception caught during transmission: {e}")
+
+@sync_application_commands.error
+async def sync_error_handler(ctx: commands.Context, error: Exception):
+    """Gracefully suppresses permission failures if non-owners try to execute the system link."""
+    if isinstance(error, commands.NotOwner):
+        await ctx.send("🔒 **Access Denied.** This critical configuration utility is locked to the application developer profile.", delete_after=10)
 
 
 if __name__ == "__main__":

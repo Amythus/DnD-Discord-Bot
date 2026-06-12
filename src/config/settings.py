@@ -34,5 +34,7 @@ class AppSettings(BaseSettings):
         case_sensitive=False
     )
 
+    guild_id: int = Field(..., alias="GUILD_ID")
+
 # Instantiate a single global instance of our verified app configurations
 settings = AppSettings()
