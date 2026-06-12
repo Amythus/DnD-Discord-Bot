@@ -90,5 +90,53 @@ class NarrativeEngineCog(commands.Cog):
             
         await channel.send(embed=embed)
 
+
+
+
+
+        async def enforce_context_history_pruning(self, session: GameSession) -> GameSession:
+        """
+        Monitors running chat arrays. When the message collection logs grow too dense, 
+        it compresses old transactions down into the continuous campaign summary text.
+        """
+        # Boundary baseline check: Only prune if the chat history exceeds 30 dialogue turn blocks
+        if len(session.narrative_memory.recent_chat_history) < 30:
+            return session
+
+        print(f"📦 Compressing chat logs for session ID {session.id} to protect context bounds...")
+
+        # Isolate the oldest half of the chat log to summarize, keeping the recent half for active context continuity
+        split_index = len(session.narrative_memory.recent_chat_history) // 2
+        old_history_to_compress = session.narrative_memory.recent_chat_history[:split_index]
+        fresh_history_to_retain = session.narrative_memory.recent_chat_history[split_index:]
+
+        # --- STEP 1: Compile Context Using TemplateService ---
+        # We pass the raw array directly to Jinja2, allowing the template loop to format speaker blocks
+        prompt = prompt_service.render_prompt(
+            "history_pruner.jinja",
+            campaign_summary_so_far=session.narrative_memory.campaign_summary_so_far,
+            old_history_to_compress=old_history_to_compress
+        )
+
+        # --- STEP 2: Invoke Gemini 3.1 Flash Lite for Summary Synthesis ---
+        response = self.ai_client.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2, # Low temperature forces factual chronological tracking
+                thinking_level="low"
+            )
+        )
+
+        # --- STEP 3: Update and Overwrite Master Document Fields ---
+        session.narrative_memory.campaign_summary_so_far = response.text.strip()
+        session.narrative_memory.recent_chat_history = fresh_history_to_retain
+        
+        # Recalculate raw token count metadata estimates dynamically
+        session.narrative_memory.summary_token_count = len(response.text.split())
+        
+        print(f"✅ Chat logs successfully pruned. New Summary length: {session.narrative_memory.summary_token_count} words.")
+        return session
+
 async def setup(bot):
     await bot.add_cog(NarrativeEngineCog(bot))

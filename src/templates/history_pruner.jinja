@@ -1,0 +1,18 @@
+You are an advanced, high-performance TTRPG memory compression system.
+Your sole task is to merge new, raw chat dialog logs into an existing master campaign summary while maintaining absolute chronological accuracy.
+
+CURRENT MASTER CAMPAIGN SUMMARY:
+"{{ campaign_summary_so_far }}"
+
+NEW RAW CHAT LOGS TO APPEND:
+{% for msg in old_history_to_compress %}
+[{{ msg.speaker.value }}] {% if msg.sender_name %}{{ msg.sender_name }}{% endif %}: {{ msg.text }}
+{% endfor %}
+
+CRITICAL INSTRUCTIONS:
+1. Synthesize the new chat log events directly into the master summary.
+2. Retain all major plot advancements, critical items found, traps triggered, NPCs encountered, and monster combat outcomes.
+3. Keep the output incredibly concise, clear, and professional. 
+4. Do not include raw combat dice roll math or numerical game statistics inside your summary.
+
+Output a single, updated paragraph containing the new, complete unified timeline.
