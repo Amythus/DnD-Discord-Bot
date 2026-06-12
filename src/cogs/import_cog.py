@@ -127,19 +127,6 @@ class ImportCog(commands.Cog):
                 on_insert=character_doc
             )
 
-            # print(ai_response.text) # Debug the raw JSON response from the LLM before Pydantic cleans it up furthe
-
-            # --- STEP 3: Clean LLM Code Fences and Save to MongoDB via Beanie ---
-            # sheet_dict = prompt_service.clean_json_response(ai_response.text)
-            # sheet_dict["user_id"] = str(interaction.user.id) # Inject active user owner link
-            
-            # # This safely instantiates your Beanie Document and generates a fresh ObjectId automatically!
-            # character_doc = CharacterSheet(**sheet_dict)
-            
-            # # Perform upsert safely into MongoDB via Beanie
-            # # await character_doc.save(link_rule=WriteRules.WRITE, upsert=True)
-            # await character_doc.save(upsert=True) 
-
             await interaction.followup.send(f"✅ **Import Successful!** Character **{character_doc.name}** (Level {character_doc.level}) has been successfully mapped to your Discord account!")
 
         except Exception as e:
@@ -163,6 +150,8 @@ class ImportCog(commands.Cog):
 
         download_url = f"https://google.com{file_id}"
         temp_filepath = os.path.join(self.tmp_dir, f"{campaign_id}_temp.pdf")
+
+        
 
         success = await self.download_file_async(download_url, temp_filepath)
         if not success or not os.path.exists(temp_filepath):
@@ -219,9 +208,17 @@ class ImportCog(commands.Cog):
                         story_and_triggers=StoryAndTriggers(**r["story_and_triggers"]),
                         llm_contexts=RoomLLMContexts(**r["llm_contexts"])
                     )
-                    # Commit upsert securely to the MongoDB cluster collection via Beanie
-                    # await room_doc.save(link_rule=WriteRules.WRITE, upsert=True)
-                    # await room_doc.save(upsert=True)
+
+                    # Update data for upsert
+                    update_room_doc = room_doc.model_dump(exclude={"id"}) # shouldn't need this because should check if campaign id exists already, and if so then dont just return
+
+                    # Perform upsert safely into MongoDB via Beanie
+                    await Room.find_one(
+                        Room.room_id == room_doc.room_id
+                    ).upsert(
+                        Set(update_room_doc),
+                        on_insert=room_doc
+                    )
                 except Exception as inner_err:
                     print(f"Skipped malformed block index {idx} during import loop: {inner_err}")
 

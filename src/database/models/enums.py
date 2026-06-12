@@ -26,9 +26,11 @@ class LightingLevel(str, Enum):
     DARKNESS = "DARKNESS"
 
 class SessionStatus(str, Enum):
-    ACTIVE = "ACTIVE"
+    LOBBY = "LOBBY"         # Created via /start_session, waiting for player character registrations
+    ACTIVE = "ACTIVE"       # Commenced via /begin_campaign, game loop is running natively
     PAUSED = "PAUSED"
     COMPLETED = "COMPLETED"
+
 
 class SpeakerType(str, Enum):
     PLAYER = "PLAYER"

@@ -11,109 +11,108 @@ from database.models.session import GameSession, PartyState, CombatState, Narrat
 from database.models.character import CharacterSheet
 from database.models.room import Room
 
+import discord
+from discord.ext import commands
+from discord import app_commands
+from google import genai
+from google.genai import types
+
+from utils.template_service import prompt_service
+from database.models.session import GameSession, SessionStatus, SpeakerType, ChatMessage
+from database.models.room import Room
+from .views import ModuleStartView
+
 class CoreCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.ai_client = genai.Client()
 
-    @app_commands.command(name="start_campaign", description="Initializes a new game session using an imported campaign module.")
-    @app_commands.describe(campaign_id="The unique reference slug identifier of the module (e.g. lost_mine_of_phandelver)")
-    async def start_campaign(self, interaction: discord.Interaction, campaign_id: str):
-        """Creates a running group session delta environment inside MongoDB."""
+    @app_commands.command(name="start_session", description="DM Only: Select a campaign module blueprint and open the player registration lobby.")
+    async def start_session(self, interaction: discord.Interaction):
+        """Queries unique campaign blueprints from MongoDB and prompts selection dropdown."""
+        # Enforce safety check: prevent establishing multiple simultaneous running lobbies
+        existing_lobby = await GameSession.find_one(GameSession.session_status == SessionStatus.LOBBY)
+        if existing_lobby:
+            return await interaction.response.send_message(
+                f"❌ An open registration lobby already exists for campaign: `{existing_lobby.campaign_id}`. "
+                f"Please close or launch that session before creating a new one.", habits=True, ephemeral=True
+            )
+
+        # Gather an array of all distinct campaign tags inside your rooms collection blueprint library
+        room_collection = Room.get_motor_collection()
+        distinct_campaigns = await room_collection.distinct("module_id")
+
+        if not distinct_campaigns:
+            return await interaction.response.send_message(
+                "❌ **No Ingested Modules Detected!** Your blueprint library collection is completely empty. "
+                "Please run `/import_module` first.", ephemeral=True
+            )
+
+        view = ModuleStartView(campaign_slugs=distinct_campaigns, dm_id=interaction.user.id)
+        await interaction.response.send_message(
+            content="📋 **Dungeon Master Module Selector**\nChoose which campaign configuration profile to load tonight:",
+            view=view, ephemeral=True
+        )
+
+    @app_commands.command(name="begin_campaign", description="DM Only: Closes the lobby and triggers the cinematic opening narrative.")
+    async def begin_campaign(self, interaction: discord.Interaction):
+        """Locks the active lobby, reads the first room, and invokes Gemini 3.1 Flash Lite."""
+        # Locate the unlaunched session lobby document
+        session = await GameSession.find_one(GameSession.session_status == SessionStatus.LOBBY)
+        if not session:
+            return await interaction.response.send_message("❌ There are no open registration lobbies awaiting commencement. Run `/start_session` first.", ephemeral=True)
+
+        if not session.party_state.active_characters:
+            return await interaction.response.send_message("❌ Cannot begin: No player characters have joined the party array yet! Run `/join_session`.", ephemeral=True)
+
         await interaction.response.defer(ephemeral=False)
 
-        # 1. Fetch the absolute starting room blueprint for this specific module from MongoDB
-        # Convention: The first room of an ingested module is slugified as '<campaign_id>_lvl1_room_01'
-        starting_room_id = f"{campaign_id}_lvl1_room_01"
+        # 1. Pull the absolute first room blueprint from MongoDB
+        starting_room_id = session.party_state.current_room_id
         starting_room = await Room.find_one(Room.room_id == starting_room_id)
-        
-        if not starting_room:
-            return await interaction.followup.send(
-                f"❌ **Module Not Found!** Unable to locate a parsed module matching id `{campaign_id}` in our collection blueprints. "
-                f"Ensure you run `/import_module` first."
-            )
 
-        # 2. Gather all public Character Sheets registered to users currently in this Discord text channel
-        active_characters_map = {}
-        channel_members = interaction.channel.members
-        
-        for member in channel_members:
-            if member.bot:
-                continue
-            # Search for the latest character profile sheet owned by this discord user id string
-            master_sheet = await CharacterSheet.find_one(CharacterSheet.user_id == str(member.id))
-            if master_sheet:
-                from database.models.session import ActiveCharacterState
-                # Convert the heavy sheet down to a streamlined real-time active state dictionary
-                active_characters_map[str(master_sheet.id)] = ActiveCharacterState(
-                    character_id=master_sheet.id,
-                    user_id=str(member.id),
-                    name=master_sheet.name,
-                    class_and_level=f"{master_sheet.character_class} {master_sheet.level}",
-                    current_hp=master_sheet.vitals.current_hp,
-                    armor_class=master_sheet.vitals.armor_class,
-                    speed_ft=master_sheet.vitals.speed_ft,
-                    initiative_modifier=master_sheet.vitals.initiative_modifier,
-                    passive_perception=master_sheet.vitals.passive_perception,
-                    proficiency_bonus=2, # Default tier 1 modifier boundary
-                    saving_throw_modifiers={k: v.modifier for k, v in master_sheet.attributes.__dict__.items()},
-                    skill_modifiers={s: 2 for s in master_sheet.proficiencies} # Rough baseline lookup
-                )
+        # 2. Advance the Session lifecycle status handle from LOBBY to ACTIVE
+        session.session_status = SessionStatus.ACTIVE
+        session.narrative_memory.campaign_summary_so_far = f"The campaign officially began in {starting_room.title}."
 
-        if not active_characters_map:
-            return await interaction.followup.send("❌ **Party Setup Failed!** No registered character sheets found for members in this channel. Run `/import_character` first.")
+        # Grab the character object of the appointed party leader guide
+        leader_actor = session.party_state.active_characters[str(session.party_state.party_leader_id)]
 
-        # 3. Designate the command executor as the initial party leader token holder
-        leader_character_id = list(active_characters_map.keys())[0]
-        leader_name = active_characters_map[leader_character_id].name
-
-        # 4. Instantiate the complete GameSession database delta document structure
-        new_session = GameSession(
-            campaign_id=campaign_id,
-            session_status=SessionStatus.ACTIVE,
-            party_state=PartyState(
-                current_region_id=campaign_id,
-                current_room_id=starting_room_id,
-                party_leader_id=leader_character_id,
-                active_characters=active_characters_map
-            ),
-            combat_state=CombatState(in_combat=False),
-            narrative_memory=NarrativeMemory(campaign_summary_so_far=f"The party began their journey in {starting_room.title}.")
-        )
-        
-        # Save the live session tracking layout to MongoDB via Beanie
-        await new_session.insert()
-
-        # --- STEP 5: Invoke Jinja2 Welcome Template and Call Gemini 3.1 Flash Lite ---
+        # --- STEP 3: Compile Context and Call Gemini 3.1 Flash Lite ---
         prompt = prompt_service.render_prompt(
             "campaign_welcome.jinja",
-            campaign_title=campaign_id.replace("_", " ").title(),
+            campaign_title=session.campaign_id.replace("_", " ").title(),
             room=starting_room,
-            session=new_session,
-            leader_name=leader_name
+            session=session,
+            leader_name=leader_actor.name
         )
 
-        response = self.ai_client.models.generate_content(
-            model="gemini-3.1-flash-lite",
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.85, # Immersive storytelling style variance
-                thinking_level="low" # Lower reasoning depth is fine for introductory narrative prose
+        async with interaction.channel.typing():
+            response = self.ai_client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.85, # Rich cinematic variance
+                    thinking_level="low"
+                )
             )
+            story_intro = response.text
+
+        # 4. Commit results to database history arrays
+        session.narrative_memory.recent_chat_history.append(
+            ChatMessage(speaker=SpeakerType.NARRATOR, text=story_intro)
         )
+        await session.save()
 
-        story_intro = response.text
-
-        # 6. Post the clean welcome embed out to the active channel layout
+        # 5. Broadcast the epic opening cinematic narrative to the player channel
         embed = discord.Embed(
-            title=f"⚔️ Campaign Initialized: {campaign_id.replace('_', ' ').title()}",
+            title=f"⚔️ Campaign Commenced: {session.campaign_id.replace('_', ' ').title()}",
             description=story_intro,
             color=discord.Color.dark_red()
         )
-        embed.add_field(name="👑 Appointed Party Leader", value=f"**{leader_name}** has been given the Vanguard Lead Token.", inline=False)
-        embed.add_field(name="🗺️ Current Location", value=f"📍 **{starting_room.title}**", inline=True)
-        embed.add_field(name="👥 Active Party Size", value=f"🛡️ **{len(active_characters_map)} Heroes** active in session.", inline=True)
-        embed.set_footer(text=f"Session ID Reference Reference: {new_session.id}")
+        embed.add_field(name="📍 Current Location", value=f"**{starting_room.title}**", inline=True)
+        embed.add_field(name="👑 Party Vanguard", value=f"**{leader_actor.name}**", inline=True)
+        embed.set_footer(text=f"Session Active | ID: {session.id}")
         
         await interaction.followup.send(embed=embed)
 
