@@ -12,6 +12,15 @@ class ActiveModifier(BaseModel):
     duration_type: EffectDuration
     rounds_remaining: Optional[int] = None
 
+class TurnResourceTracker(BaseModel):
+    action_used: bool = False
+    bonus_action_used: bool = False
+    reaction_used: bool = False
+    # Simplified Theatre of the Mind movement tracking
+    movement_remaining_ft: int = 30 
+    # Semantically flags exactly who this player is close to in the room
+    engaged_in_melee_with: Optional[str] = None 
+
 class ActiveCharacterState(BaseModel):
     character_id: PydanticObjectId
     user_id: str
@@ -28,7 +37,7 @@ class ActiveCharacterState(BaseModel):
     skill_modifiers: Dict[str, int]
     has_regular_inspiration: bool = False
     has_heroic_inspiration: bool = False
-    reaction_used_this_round: bool = False
+    turn_resources: TurnResourceTracker = Field(default_factory=TurnResourceTracker)
     active_conditions: List[ConditionType] = Field(default_factory=list)
     active_buffs_and_debuffs: List[ActiveModifier] = Field(default_factory=list)
 

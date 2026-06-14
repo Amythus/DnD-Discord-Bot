@@ -120,6 +120,12 @@ class CombatCog(commands.Cog):
 
         if active_turn.entity_type == "PLAYER":
             actor = session.party_state.active_characters[active_turn.entity_id]
+    
+            # Reset turn-specific values for action, bonus action, and movement
+            actor.turn_resources.action_used = False
+            actor.turn_resources.bonus_action_used = False
+            actor.turn_resources.movement_remaining_ft = actor.speed_ft # Reset to their base speed (e.g., 30ft)
+            await session.save()
             
             # (Standard Attack view instantiation from earlier...)
             # If they choose to Ready an Action instead of attacking right now:
