@@ -121,10 +121,17 @@ class CombatCog(commands.Cog):
         if active_turn.entity_type == "PLAYER":
             actor = session.party_state.active_characters[active_turn.entity_id]
     
-            # Reset turn-specific values for action, bonus action, and movement
+            # 1. Reset core resources for the new turn [lost_mine_of_phandelver]
             actor.turn_resources.action_used = False
             actor.turn_resources.bonus_action_used = False
-            actor.turn_resources.movement_remaining_ft = actor.speed_ft # Reset to their base speed (e.g., 30ft)
+            actor.turn_resources.free_object_interaction_used = False
+            actor.turn_resources.has_stood_up_this_turn = False
+            actor.turn_resources.movement_remaining_ft = actor.turn_resources.base_speed_ft
+            
+            # 2. Clean up lingering defensive states from the previous round loop [lost_mine_of_phandelver]
+            actor.turn_resources.is_dodging = False
+            actor.turn_resources.is_disengaged = False
+            
             await session.save()
             
             # (Standard Attack view instantiation from earlier...)

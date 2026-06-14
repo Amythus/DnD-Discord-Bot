@@ -13,13 +13,28 @@ class ActiveModifier(BaseModel):
     rounds_remaining: Optional[int] = None
 
 class TurnResourceTracker(BaseModel):
+from pydantic import BaseModel, Field
+from typing import Optional, List
+
+class TurnResourceTracker(BaseModel):
+    # Core Combat Action Flags
     action_used: bool = False
     bonus_action_used: bool = False
     reaction_used: bool = False
-    # Simplified Theatre of the Mind movement tracking
-    movement_remaining_ft: int = 30 
-    # Semantically flags exactly who this player is close to in the room
-    engaged_in_melee_with: Optional[str] = None 
+    free_object_interaction_used: bool = False
+    
+    # Active Defensive Buff Statuses (Reset at the START of the player's next turn)
+    is_dodging: bool = False
+    is_disengaged: bool = False
+    is_hiding: bool = False
+    has_stood_up_this_turn: bool = False
+    
+    # Simplified Theatre of the Mind Movement & Positioning Tracking
+    base_speed_ft: int = 30
+    movement_remaining_ft: int = 30
+    active_movement_mode: str = "WALK" # [WALK, CRAWL, SWIM, CLIMB, PRONE]
+    engaged_in_melee_with: Optional[str] = None # Tracks active engagement targets
+
 
 class ActiveCharacterState(BaseModel):
     character_id: PydanticObjectId
