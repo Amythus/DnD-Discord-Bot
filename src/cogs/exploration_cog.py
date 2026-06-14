@@ -1,82 +1,79 @@
 import discord
 from discord.ext import commands
 from beanie import PydanticObjectId
-from database.models.session import GameSession, SpeakerType, ChatMessage
-from database.models.room import Room
-from .views import ExplorationNavigationView
+from database.models.session import GameSession
+from database.models.node import Node
 
 class ExplorationCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(name="map")
-    async def display_navigation_controls(self, ctx):
-        """Queries the current room and instantiates active compass navigation buttons."""
+    @commands.command(name="move", aliases=["go", "head"])
+    async def text_move_command(self, ctx, direction: str):
+        """Processes cardinal movement inputs (north, south, east, west) from player chat text."""
+        target_dir = direction.strip().lower()
+        if target_dir not in ["north", "south", "east", "west"]:
+            return await ctx.send("❌ **Invalid Direction!** Please provide a cardinal compass heading: `north`, `south`, `east`, or `west`.")
+
+        # 1. Look up the caller's active running game session
         session = await GameSession.find_one({"party_state.active_characters.user_id": str(ctx.author.id)})
         if not session:
-            return await ctx.send("❌ Active game session not found.")
-        
+            return await ctx.send("❌ You are not currently linked to an active campaign session.")
+            
         if session.combat_state.in_combat:
-            return await ctx.send("❌ Navigation map commands are disabled while locked in combat initiative structure.")
+            return await ctx.send("❌ You cannot change map locations casually while locked in active initiative combat structure.")
 
-        # Pull immutable room blueprint from MongoDB
-        room = await Room.find_one(Room.room_id == session.party_state.current_room_id)
+        # 2. Enforce Lead Token rules: Only the designated party leader can direct movement
+        if str(session.party_state.party_leader_id) != str(ctx.author.id) and session.party_state.active_characters.get(str(session.party_state.party_leader_id)).user_id != str(ctx.author.id):
+            return await ctx.send("❌ Only the appointed Vanguard Party Leader can navigate the group to new areas.")
+
+        # 3. Pull the active world-graph Node from MongoDB
+        current_node = await Node.find_one(Node.node_id == session.party_state.current_room_id)
         
-        # Flatten exit dictionary back to basic string IDs for the button view layout
-        exit_map = {
-            "north": room.navigation.exits["north"].target_room_id if "north" in room.navigation.exits else "none",
-            "south": room.navigation.exits["south"].target_room_id if "south" in room.navigation.exits else "none",
-            "east": room.navigation.exits["east"].target_room_id if "east" in room.navigation.exits else "none",
-            "west": room.navigation.exits["west"].target_room_id if "west" in room.navigation.exits else "none",
-        }
+        # 4. Search the Exit List for a matching discovered cardinal direction
+        matched_exit = next((
+            ex for ex in current_node.navigation.exits 
+            if ex.direction.lower() == target_dir and ex.is_discovered
+        ), None)
 
-        # Query who possesses the designated Lead Token rights
-        leader_id = str(session.party_state.party_leader_id)
+        if not matched_exit:
+            return await ctx.send(f"❌ There is no visible, accessible exit leading **{target_dir.upper()}** from here.")
 
-        view = ExplorationNavigationView(
-            session_id=session.id, 
-            leader_user_id=leader_id, 
-            available_exits=exit_map
-        )
-        
-        await ctx.send(
-            content=f"🗺️ **Current Location: {room.title}**\nUse the direction buttons below to guide the party:",
-            view=view
-        )
+        if matched_exit.is_locked:
+            return await ctx.send(f"🚧 The path to the {target_dir.upper()} is blocked! The **{matched_exit.type.replace('_',' ').title()}** is currently locked securely.")
 
-    @commands.Cog.listener()
-    async def on_party_move_execute(self, session_id: PydanticObjectId, target_room_id: str, channel: discord.TextChannel):
-        """Triggered when the view confirms a valid movement transition action."""
-        session = await GameSession.get(session_id)
-        
-        # 1. Mutate the active party location tracking string in the database
-        session.party_state.current_room_id = target_room_id
-        
-        # Setup initial room delta flag if visiting for the first time
-        if target_room_id not in session.room_deltas:
-            session.room_deltas[target_room_id] = {"explored": True, "cleared": False, "looted": False}
-        else:
-            session.room_deltas[target_room_id].explored = True
+        # 5. Execute the move action natively in Python
+        await self.execute_party_transition(session, matched_exit.target_node_id, target_dir, ctx.channel)
 
+    async def execute_party_transition(self, session: GameSession, target_node_id: str, direction_moved: str, channel: discord.TextChannel):
+        """Mutates document states and dispatches the transition payload down to the Narrative Engine."""
+        # Save new location ID directly to MongoDB via Beanie
+        session.party_state.current_room_id = target_node_id
         await session.save()
 
-        # 2. Query the new destination properties from MongoDB
-        new_room = await Room.find_one(Room.room_id == target_room_id)
-        
-        # 3. Compile structural notification payload package straight to Narrative layer
-        # This bypasses the Rules Intent parser because a directional button click has hard-coded mechanics
+        # Fetch the newly targeted destination graph node
+        new_node = await Node.find_one(Node.node_id == target_node_id)
+
+        # Compile sensory notes out of the new node's properties
+        sensory_notes = []
+        if new_node.sensory_profile.ambient_sound: sensory_notes.append(f"Sounds: {new_node.sensory_profile.ambient_sound}")
+        if new_node.sensory_profile.olfactory_clue: sensory_notes.append(f"Smell: {new_node.sensory_profile.olfactory_clue}")
+        if new_node.sensory_profile.thermal_clue: sensory_notes.append(f"Temperature: {new_node.sensory_profile.thermal_clue}")
+        compiled_sensory_string = " | ".join(sensory_notes) if sensory_notes else "None detected."
+
+        # Compile structural data validation payload packet straight to Narrative layer
         payload = {
             "character_id": str(session.party_state.party_leader_id),
-            "check_type": "ROOM_TRANSITION",
+            "check_type": "THEATRE_OF_THE_MIND_MOVE",
             "dc_target": 0,
             "final_score": 0,
-            "math_breakdown": f"Party transitioned spaces to {new_room.title}",
+            "math_breakdown": f"Moved {direction_moved.upper()} into {new_node.title}. Sensory data: {compiled_sensory_string}",
             "outcome": "SUCCESS",
-            "raw_statement": f"We walk into the room."
+            "raw_statement": f"We move to the {direction_moved.upper()}."
         }
 
-        # Fire event hook to let NarrativeEngineCog compile prose and stream back descriptions
-        self.bot.dispatch("rules_roll_complete", session_id, payload)
+        # Fire event hook to let NarrativeEngineCog compile prose and print the description
+        self.bot.dispatch("rules_roll_complete", session.id, payload)
 
 async def setup(bot):
     await bot.add_cog(ExplorationCog(bot))

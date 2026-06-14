@@ -36,7 +36,7 @@ async def init_database(mongo_uri: Optional[str] = None):
                 CharacterSheet,  # Maps to 'characters' collection (Persistent master sheets)
                 GameSession,     # Maps to 'sessions' collection (Live active delta states)
                 Monster,         # Maps to 'monsters' collection (MM & Module variants)
-                Room             # Maps to 'rooms' collection (Static blueprint library)
+                Node             # Maps to 'rooms' collection (Static blueprint library)
             ]
         )
         

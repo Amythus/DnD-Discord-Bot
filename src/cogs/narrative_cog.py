@@ -91,7 +91,83 @@ class NarrativeEngineCog(commands.Cog):
         await channel.send(embed=embed)
 
 
+    @commands.Cog.listener()
+    async def on_intent_dialogue_execute(self, channel, session: GameSession, npc_profile: dict, player_speech_text: str, user_id: int):
+        """
+        Processes conversational roleplay intents. Scans player speech text against 
+        node behavior triggers before using Gemini 3.5 to render the NPC's in-character response.
+        """
+        # 1. Fetch active node blueprint to analyze current behavior triggers
+        node = await Node.find_one(Node.node_id == session.party_state.current_room_id)
+        character_id = next((c_id for c_id, c in session.party_state.active_characters.items() if c.user_id == str(user_id)), None)
+        actor = session.party_state.active_characters[character_id]
 
+        fired_social_trigger = None
+
+        # 2. Iterate through behavioral structures to check for matching conversation cues
+        if npc_profile:
+            # Cast raw model object data parameters safely
+            for trigger in node.node_metadata.behavior_triggers:
+                if trigger.trigger_type != "player_action":
+                    continue
+                
+                # Check if the player speech contains a specific conditional phrase
+                # Example: If trigger condition is "ordered_boiling_oil", check if "boiling oil" is in their input text
+                clean_condition = trigger.condition.replace("_", " ").lower()
+                if clean_condition in player_speech_text.lower():
+                    # Match caught! Invoke trigger processing mechanics
+                    fired_social_trigger = trigger
+                    
+                    # Update room metadata flags natively in MongoDB to track this choice
+                    node.node_metadata.room_states[trigger.condition] = True
+                    # Remove trigger so it doesn't fire repeatedly
+                    node.node_metadata.behavior_triggers.remove(trigger)
+                    await node.save()
+                    break
+
+        # --- STEP 3: Render Social Dialogue Prompt Context ---
+        template = self.jinja_env.get_template("narrator_social_dialogue.jinja")
+        prompt = template.render(
+            node=node,
+            npc=npc_profile,
+            fired_trigger=fired_social_trigger,
+            player_speech_text=player_speech_text
+        )
+
+        async with channel.typing():
+            # Call Gemini 3.5 Flash. We use 3.5 here for its superior linguistic comprehension 
+            # and emotional pacing during roleplay scenes
+            response = self.ai_client.models.generate_content(
+                model="gemini-3.5-flash",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.85, # Rich emotional and behavioral variety
+                )
+            )
+            npc_response_text = response.text
+
+        # 4. Save the conversation exchange directly to the rolling chat logs for history tracking
+        from models.session import ChatMessage, SpeakerType
+        session.narrative_memory.recent_chat_history.append(
+            ChatMessage(speaker=SpeakerType.PLAYER, sender_name=actor.name, text=player_speech_text)
+        )
+        session.narrative_memory.recent_chat_history.append(
+            ChatMessage(speaker=SpeakerType.NARRATOR, sender_name=npc_profile.get("npc_id"), text=npc_response_text)
+        )
+        
+        # Run your background auto-summary pruning worker before committing the save
+        session = await self.enforce_context_history_pruning(session)
+        await session.save()
+
+        # 5. Output a clean, beautiful Dialogue Embed block to the Discord channel
+        title_label = npc_profile.get('alias') if npc_profile.get('alias') else npc_profile.get('npc_id').replace('_',' ').title()
+        
+        embed = discord.Embed(
+            title=f"🗣️ Dialogue: {title_label}",
+            description=npc_response_text,
+            color=discord.Color.teal() if not fired_social_trigger else discord.Color.gold()
+        )
+        await channel.send(embed=embed)
 
 
     async def enforce_context_history_pruning(self, session: GameSession) -> GameSession:

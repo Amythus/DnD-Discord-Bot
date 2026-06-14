@@ -37,7 +37,7 @@ async def handle_initial_roll_result(ctx, session_id: PydanticObjectId, characte
     outcome = "SUCCESS" if success else "FAILURE"
     
     # 2024 Rule Rulebook Integration: Rolling a natural 20 awards a free Regular Inspiration charge
-    awarded_inspiration_note = ""
+awarded_inspiration_note = ""
     if rolled_d20 == 20:
         actor.has_regular_inspiration = True
         await session.save()

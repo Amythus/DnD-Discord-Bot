@@ -8,7 +8,7 @@ from discord.ext import commands
 from discord import app_commands
 from google import genai
 from google.genai import types
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from beanie import WriteRules
 from beanie.odm.operators.update.general import Set
 # Import core system helper utilities and Beanie document schemas

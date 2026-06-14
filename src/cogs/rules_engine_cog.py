@@ -95,6 +95,31 @@ class RulesEngineCog(commands.Cog):
                     f"**{stat_name.replace('_', ' ').title()} check forced.** Target DC: **{target_dc}**",
             view=view
         )
+    
+        async def trigger_team_group_check(self, channel, session_id: PydanticObjectId, stat_name: str, target_dc: int, check_mode: str):
+        """Spawns a multi-user collective rolling interface board."""
+        session = await GameSession.get(session_id)
+        
+        # Extract all active, live player characters currently registered inside this campaign lobby session
+        active_party_ids = list(session.party_state.active_characters.keys())
+        
+        view = GroupDiceRollView(
+            session_id=session_id,
+            checking_team_ids=active_party_ids,
+            stat_name=stat_name,
+            target_dc=target_dc,
+            check_mode=check_mode # "GROUP_CHECK" or "INDIVIDUAL_HAZARD"
+        )
+        
+        mode_label = "Coordinated Group Check" if check_mode == "GROUP_CHECK" else "⚠️ AREA HAZARD SAVING THROW"
+        
+        await channel.send(
+            content=f"🔔 **{mode_label} FORCED!**\n"
+                    f"The entire party must roll a **{stat_name.upper()}** check (DC **{target_dc}**).\n"
+                    f"Please click the button below to submit your character's roll:",
+            view=view
+        )
+
 
 async def setup(bot):
     await bot.add_cog(RulesEngineCog(bot))
