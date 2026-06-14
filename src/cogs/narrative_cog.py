@@ -170,6 +170,51 @@ class NarrativeEngineCog(commands.Cog):
         await channel.send(embed=embed)
 
 
+    @commands.Cog.listener()
+    async def on_intent_status_check_execute(self, channel, session: GameSession, node: Node, query_text: str, user_id: int):
+        """
+        Invokes the DM-Assistant Advisor LLM to answer tactical staging queries
+        and evaluate rules legality before players commit to an action.
+        """
+        # 1. Identify the specific active character model belonging to the user making the query
+        character_id = next((c_id for c_id, c in session.party_state.active_characters.items() if c.user_id == str(user_id)), None)
+        if not character_id:
+            return # Silent fail if user has no registered active character in this lobby
+            
+        actor = session.party_state.active_characters[character_id]
+
+        # --- STEP 2: Compile Full Game State and Render Jinja2 Advice Prompt ---
+        prompt = prompt_service.render_prompt(
+            "dm_assistant_advisor.jinja",
+            node=node,
+            session=session,
+            actor=actor,
+            query_text=query_text
+        )
+
+        async with channel.typing():
+            # Call Gemini 3.1 Flash Lite. Since this is an out-of-character advisor help tool,
+            # we keep the cost low while keeping precision high
+            response = self.ai_client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.4,  # Lower temperature prevents rule hallucinations
+                    thinking_level="low"
+                )
+            )
+            advice_text = response.text
+
+        # --- STEP 3: Print a Clean, Specialized Tactical Information Embed ---
+        embed = discord.Embed(
+            title=f"🛡️ Tactical Advice: {actor.name}",
+            description=advice_text,
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text="Staging Area | State unchanged. Type your action to commit.")
+        
+        await channel.send(embed=embed)
+
     async def enforce_context_history_pruning(self, session: GameSession) -> GameSession:
         """
         Monitors running chat arrays. When the message collection logs grow too dense, 

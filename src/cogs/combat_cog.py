@@ -115,6 +115,32 @@ class CombatCog(commands.Cog):
                 view=view
             )
 
+    async def process_active_combat_turn(self, channel, session: GameSession):
+        active_turn = session.combat_state.initiative_order[session.combat_state.active_turn_index]
+
+        if active_turn.entity_type == "PLAYER":
+            actor = session.party_state.active_characters[active_turn.entity_id]
+            
+            # (Standard Attack view instantiation from earlier...)
+            # If they choose to Ready an Action instead of attacking right now:
+            # We can invoke a slash command or a button that prompts a trigger entry
+            pass
+
+    async def register_readied_action(self, session_id, actor_id, trigger_word, target_id, weapon_payload):
+        """Saves a held action and a reaction trigger keyword to the database queue."""
+        session = await GameSession.get(session_id)
+        
+        from models.session import ReadiedAction
+        new_ready = ReadiedAction(
+            character_id=actor_id,
+            trigger_keyword_condition=trigger_word.lower(), # e.g., "attacks"
+            target_entity_id=target_id,
+            held_action_payload=weapon_payload
+        )
+        
+        session.combat_state.active_readied_actions.append(new_ready)
+        await session.save()
+
     @commands.Cog.listener()
     async def on_combat_turn_resolve(self, session_id, math_payload: dict, channel: discord.TextChannel):
         """Listener hook that picks up finalized math results and streams storytelling entries."""

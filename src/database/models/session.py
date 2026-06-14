@@ -43,11 +43,18 @@ class InitiativeTurn(BaseModel):
     entity_type: str
     roll_total: int
 
+class ReadiedAction(BaseModel):
+    character_id: str
+    trigger_keyword_condition: str  # e.g., "attacks", "moves", "appears"
+    target_entity_id: str           # e.g., "invisible_stalker_1"
+    held_action_payload: dict       # Stores weapon parameters, modifiers, etc.
+
 class CombatState(BaseModel):
     in_combat: bool = False
     current_round: int = 0
     active_turn_index: int = 0
     initiative_order: List[InitiativeTurn] = Field(default_factory=list)
+    active_readied_actions: List[ReadiedAction] = Field(default_factory=list)
 
 class RoomDelta(BaseModel):
     explored: bool = False
