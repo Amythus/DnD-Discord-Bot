@@ -50,7 +50,6 @@ class ActiveCharacterState(BaseModel):
     proficiency_bonus: int
     saving_throw_modifiers: Dict[str, int]
     skill_modifiers: Dict[str, int]
-    has_regular_inspiration: bool = False
     has_heroic_inspiration: bool = False
     turn_resources: TurnResourceTracker = Field(default_factory=TurnResourceTracker)
     active_conditions: List[ConditionType] = Field(default_factory=list)

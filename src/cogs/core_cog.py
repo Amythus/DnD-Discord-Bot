@@ -16,7 +16,6 @@ from discord.ext import commands
 from discord import app_commands
 from google import genai
 from google.genai import types
-
 from services.template_service import prompt_service
 from database.models.session import GameSession, SessionStatus, SpeakerType, ChatMessage
 from database.models.room import Room

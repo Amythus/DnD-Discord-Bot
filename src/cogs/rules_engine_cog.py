@@ -5,7 +5,7 @@ from jinja2 import Environment, FileSystemLoader
 from google import genai
 from google.genai import types
 from database.models.session import GameSession
-from cogs.views import InitialDiceRollView
+from views.dice_roll_view import InitialDiceRollView, GroupDiceRollView
 
 class RulesEngineCog(commands.Cog):
     def __init__(self, bot):
@@ -79,20 +79,20 @@ class RulesEngineCog(commands.Cog):
         stat_name = intent["stat_to_use"]
         target_dc = intent["target_dc"]
         modifier = intent["modifier_value"]
+        roll_mode = intent.get("roll_modifier_mode", "NORMAL") # Extracts [NORMAL, ADVANTAGE, DISADVANTAGE]
 
-        # Instantiate our dynamic multi-die split selection view
         view = InitialDiceRollView(
             session_id=session.id,
             character_id=character_id,
             stat_name=stat_name,
             target_dc=target_dc,
             modifier=modifier,
-            can_use_inspiration=actor.has_regular_inspiration
+            roll_modifier_mode=roll_mode
         )
 
         await channel.send(
-            content=f"🎲 **{actor.name}** attempts to act! *({intent['reasoning']})*\n"
-                    f"**{stat_name.replace('_', ' ').title()} check forced.** Target DC: **{target_dc}**",
+            content=f"⚠️ **{actor.name}** attempts to act! *({intent['reasoning']})*\n"
+                    f"**{stat_name.replace('_', ' ').title()} check forced.** Mode: **{roll_mode}**",
             view=view
         )
     
