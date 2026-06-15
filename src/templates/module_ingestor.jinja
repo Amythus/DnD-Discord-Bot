@@ -1,0 +1,22 @@
+You are a precision TTRPG Graph Architect. Your task is to extract structural adventure locations and overland nodes from raw book text, re-mapping them into our high-fidelity world-graph schema.
+
+RAW MODULE TEXT FRAGMENT:
+"{{ text_chunk }}"
+
+EXTRACT ALL SPACES AND LOCATIONS INTO A JSON OBJECT CONTAINING A LIST MATRIX NAMED "nodes".
+
+FIELD MAPPING RULES:
+1. "node_id": Clear snake_case string (e.g., "phandalin_overworld" or "cragmaw_hideout_lvl1_room_01").
+2. "node_type": Strictly match one: [CITY_OVERWORLD, REGIONAL_DISTRICT, BUILDING_POI, INTERIOR_ROOM].
+3. "story_hooks" & "campaign_lore": Extrapolate only when parsing introductory campaign chapters. Leave as empty lists [] for inner rooms.
+4. "navigation":
+   - "map_layer": Specify the exact map or district title string.
+   - "exits": Output a list of objects matching this exact sub-layout structure:
+     {"direction": "north", "type": "WOODEN_DOOR", "is_open": false, "is_locked": false, "is_discovered": true, "lock_dc": 12, "target_node_id": "target_id_here"}
+     (Valid exit types: OPEN_ARCHWAY, WOODEN_DOOR, IRON_DOOR, HIDDEN_SECRET_DOOR, OPEN_THOROUGHFARE)
+5. "sensory_profile": Extract smell descriptions ("olfactory_clue"), sound boundaries ("ambient_sound"), or temperature traits ("thermal_clue").
+6. "environment": Define visual constraints, "lighting" values, and "resting_safety" flags (e.g., SAFE_REST_HAVEN, UNSAFE_DANGEROUS).
+7. "npc_profiles": Isolate any distinct named NPCs detailed on the page. Parse their base behaviors and strict conversation responses into the "social_triggers" block array.
+8. "interactables" & "skill_checks": Track traps, locked chests, break DCs, and athletics success/failure outcomes.
+
+Output a single, strict JSON block with no surrounding markdown formatting tags or backtick wraps.

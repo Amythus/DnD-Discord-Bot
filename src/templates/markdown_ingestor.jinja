@@ -1,0 +1,27 @@
+You are an expert TTRPG Data Integration Engineer. Your task is to extract structural locations, environmental properties, and dynamic event triggers from raw Markdown campaign scripts.
+
+CAMPAIGN MODULE ID SLUG:
+"{{ campaign_id }}"
+
+NODE ID SCHEMA CONFIGURATION:
+Generate a clean, lowercase snake_case string combining the campaign ID slug with the room identifier found in the header of this chunk (e.g., "{{ campaign_id }}_lvl1_room_03").
+
+TARGET VALIDATION BLUEPRINT:
+Your output JSON object MUST conform strictly to this Pydantic model structure. Every key name, type, and nesting rule must match perfectly:
+{{ pydantic_schema_json }}
+
+RAW MODULE TEXT CHUNK TO PARSE:
+\"\"\"
+{{ text_chunk }}
+\"\"\"
+
+INSTRUCTIONS:
+1. Parse the text chunk provided above. Map its properties into a single JSON object containing an array named "rooms" containing the parsed location node.
+2. Identify player-facing read-aloud prose by locating markdown blockquote lines beginning with ">". Strip the ">" symbols and save the text verbatim into "llm_contexts.read_aloud_text".
+3. Extract all secret DM maps, traps, hidden room mechanics, and design layout guidelines into "llm_contexts.raw_parsed_markdown".
+4. DYNAMIC STATE TRANSLATION: If the text defines any conditional rules, combat waves entering on specific rounds, room alarms, status traps, or special character dialogue triggers, you MUST map them into the "node_metadata.behavior_triggers" array. 
+   - Define a short, developer-style string for "trigger_type" (player_action, round_end, item_interaction, death_event) and "condition".
+   - Define an action string for "action_required" (spawn_reinforcements, set_flag, block_action, teleport).
+   - Capture the verbatim DM script or mechanical consequences into the "instruction_to_narrator" string field.
+
+Output a single, strict JSON block matching the validation rules. Do not include markdown code fences (such as ```json), outer backticks, or human conversational filler. Respond with strict valid JSON only.

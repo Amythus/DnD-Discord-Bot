@@ -222,3 +222,32 @@ optional:
   - If question, it will answer the question.
   - If action, it will check if action is valid or not. If action is valid, dice button view will appear stating action, dice, and modifiers. Roll dice to comfirm action.
 - `/action <action>` perform an action that doesn't require staging, ie. "I want to drink a potion" or "I want to open the door"
+
+
+actions
+- attack
+- cast spell
+- dash
+- disengage
+- dodge
+- help/assist ally
+- hide
+- ready action
+- search
+- use an object
+- improvise?
+possible movements
+- walk/run
+- stand up
+- alt movement (crawl/swim/climb)
+bonus action
+- class feature
+- spells
+- two-weapon fighting
+reactions
+- attack of opportunity
+- triggered spells
+- executing readied action
+free action
+- object interaction: opened unlocked door, sheath/unsheathe weapon, pick up item
+- communication - short sentences
