@@ -18,5 +18,10 @@ FIELD MAPPING RULES:
 6. "environment": Define visual constraints, "lighting" values, and "resting_safety" flags (e.g., SAFE_REST_HAVEN, UNSAFE_DANGEROUS).
 7. "npc_profiles": Isolate any distinct named NPCs detailed on the page. Parse their base behaviors and strict conversation responses into the "social_triggers" block array.
 8. "interactables" & "skill_checks": Track traps, locked chests, break DCs, and athletics success/failure outcomes.
+9. "node_metadata":
+   - "explicit_props": A list of all mundane, non-magical, physical furniture or objects explicitly mentioned in the text (e.g., ["heavy oak dining table", "iron wall sconces", "rotting tapestries"]). Do not include traps or creatures here.
+   - "sandbox_prop_tags": Generate a list of 3 to 6 descriptive, environmental, or thematic keywords based on the room's purpose and state (e.g., ["scholarly", "dusty", "arcane", "paper"]). The Python engine will use these tags to validate theater-of-the-mind player creative actions.
+10. "llm_contexts":
+   - "baseline_narration": Extract a clean, highly descriptive prose summary of the room's history, atmosphere, and secrets. This is used directly by the Narrator LLM to understand the vibe of the room.
 
 Output a single, strict JSON block with no surrounding markdown formatting tags or backtick wraps.
