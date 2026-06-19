@@ -1,18 +1,25 @@
-"""
-Database Models Package Registry.
-Aggregates all distinct Beanie document collection entities for clean, unified importing
-across the application ecosystem and connection initializers.
-"""
+# root/src/database/models/__init__.py
+from .config.channel import ChannelConfig
+from .static.monster import Monster
+from .static.spell import Spell
+from .static.item import Item
+from .spatial.node import MapNode
+from .session.session import CampaignSession
+from .session.delta import SessionDelta
+from .identity.character import Character
+from .identity.registry import CharacterRegistry
+from .llm.cache import RulebookCacheMetadata
 
-from .monster import Monster
-from .room import Room
-from .character import CharacterSheet
-from .session import GameSession
-
-# Explicitly define the exported public interface for this module folder
-__all__ = [
-    "Monster",
-    "Room",
-    "CharacterSheet",
-    "GameSession"
+# Export this list to database/connection.py for beanie.init_beanie()
+__all_models__ = [
+    ChannelConfig,
+    Monster,
+    Spell,
+    Item,
+    MapNode,
+    CampaignSession,
+    SessionDelta,
+    Character,
+    CharacterRegistry,
+    RulebookCacheMetadata
 ]
