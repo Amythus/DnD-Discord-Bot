@@ -27,6 +27,20 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [] 🔴 TCE: Tasha's Cauldron of Everything 2024 (Optional)
     [] 🔴 VGtM: Volo's Guide to Monsters 2024 (Optional)
     [] 🔴 MToF: Mordenkainen's Tome of Foes 2024 (Optional)
+[] 🔴 Test Case [Seed Data]: Assert that base DnD bestiary is populated into the Monster collection database
+    [] 🔴 MM: Monster Manual 2025
+    [] 🔴 VGtM: Volo's Guide to Monsters 2025
+    [] 🔴 MToF: Mordenkainen's Tome of Foes 2025
+
+## Database Schema
+[] 🔴 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors
+    [] 🔴 📜 Monster
+    [] 🔴 📜 Character
+    [] 🔴 📜 Global State Tracker
+
+## 📦 Discord Bot
+[] 🔴 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
+    [] 🔴 Discord Cogs to compartmentalize @commands, /commands, and event listeners
 
 ## 🗺️ Spatial Routing Engine (Node Matrix)
 The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.
@@ -67,12 +81,6 @@ The asynchronous multi-user voting apparatus controlling safe macro-travel acros
 [ ] 🔴 Test Case [Immediate Lock Release]: Assert that initializing an overworld travel vote releases the server's is_processing_transaction lock immediately, verifying that players can continue text chat and interact with other bot components while the poll is active.
 [ ] 🔴 Test Case [Vote Accumulation & Duplication Prevention]: Assert that a player can submit a vote to the active ledger, changing their choice iteratively, but cannot inject multiple parallel votes into the tally array.
 [ ] 🔴 Test Case [Majority Resolution Flow]: Given a party of 4, assert that when a 3rd vote matching the destination threshold is recorded, the engine instantly resolves the ledger, flushes the new location_override to the delta, and posts a travel-start embed.
-
-## 🗂️ Out-of-Band Integration & Synchronization
-The reconciliation layer handling external profiles, level ups, and long-term state merging.
-
-[ ] 🔴 Test Case [Out-of-Band Reconciliation]: Given an active SessionDelta showing -5 HP, and an external character sheet that was modified mid-week to add a new magic item, assert that the ultimate /end_session merge applies the relative -5 HP decrement cleanly without wiping out the newly added magic item array.
-[ ] 🔴 Test Case [Heroic Inspiration Atomic Toggle]: Assert that consuming or gaining Heroic Inspiration maps explicitly to an atomic $set operation targeted exclusively at the heroic_inspiration boolean field, preventing overlapping status changes from corrupting the surrounding character document.
 
 ## 🤖 LLM Context Cache Layer
 The rules adjudication component managing markdown data compaction and context caching anchors.
