@@ -10,6 +10,24 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 [x] 🟢 Test Case [Database Initialization]: Assert that the database connection is established and the collections are created successfully.
 [x] 🟢 Test Case [Discord Bot Initialization]: Bot connects to discord and responds to a ping command.
 
+## Ingestion Engine
+Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
+
+[] 🔴 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
+[] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown file and json bestiary
+    [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Campaign Nodes with all relevant fields: campaign_id, room descriptions, etc.
+    [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested monster list json file populated campaign specific monsters into the Monster collection database.
+
+## Seeding Database
+[] 🔴 Test Case [Seed Data]: Assert that the markdown files provided can be parsed and inserted into database
+    [] 🔴 PHB: Players Handbook 2024
+    [] 🔴 DMG: Dungeon Masters Guide 2024
+    [] 🔴 MM: Monster Manual 2024
+    [] 🔴 XGE: Xanathar's Guide to Everything 2024 (Optional)
+    [] 🔴 TCE: Tasha's Cauldron of Everything 2024 (Optional)
+    [] 🔴 VGtM: Volo's Guide to Monsters 2024 (Optional)
+    [] 🔴 MToF: Mordenkainen's Tome of Foes 2024 (Optional)
+
 ## 🗺️ Spatial Routing Engine (Node Matrix)
 The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.
 
