@@ -17,10 +17,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     print(f"🎲 Logged in as {bot.user.name} (ID: {bot.user.id})")
     # Setting an active D&D status activity for player scannability
-    await bot.change_presence(activity=discord.Game(name="D&D 5e (2024 Rulebook)"))
-    # await bot.tree.copy_global_to(guild=guild)
-    # await bot.tree.sync(guild=guild)
-    # await bot.tree.sync()
+    await bot.change_presence(activity=discord.Game(name="D&D 5e (2024)"))
+
 
 async def load_extensions():
     """

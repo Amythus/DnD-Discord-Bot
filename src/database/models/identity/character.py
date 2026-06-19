@@ -1,94 +1,78 @@
-from datetime import datetime
-from enum import Enum
+from typing import Dict, List, Optional
+from uuid import UUID, uuid4
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional, Annotated, Literal
 
-# ==========================================
-# 1. ENUMS & CORE TAXONOMY
-# ==========================================
+class CharacterStats(BaseModel):
+    """Sub-model for core D&D attributes."""
+    strength: int
+    dexterity: int
+    constitution: int
+    intelligence: int
+    wisdom: int
+    charisma: int
 
-class ConditionType(str, Enum):
-    BLINDED = "BLINDED"
-    CHARMED = "CHARMED"
-    DEAFENED = "DEAFENED"
-    FRIGHTENED = "FRIGHTENED"
-    GRAPPLED = "GRAPPLED"
-    INCAPACITATED = "INCAPACITATED"
-    INVISIBLE = "INVISIBLE"
-    PARALYZED = "PARALYZED"
-    PETRIFIED = "PETRIFIED"
-    POISONED = "POISONED"
-    PRONE = "PRONE"
-    RESTRAINED = "RESTRAINED"
-    STUNNED = "STUNNED"
-    UNCONSCIOUS = "UNCONSCIOUS"
-
-class ActionEconomy(BaseModel):
-    action_used: bool = False
-    bonus_action_used: bool = False
-    reaction_used: bool = False
-    movement_spent_ft: int = 0
-
-class ResourcePool(BaseModel):
+class Character(Document):
     """
-    Highly volatile session variables. Discord modifies these live. 
-    D&D Beyond imports provide the baseline starting point.
+    The master baseline character sheet. 
+    This is updated strictly during mid-week level-ups or D&D Beyond syncs, 
+    NOT during live combat.
     """
-    current_hp: int = Field(description="Active session HP. Mutated live via Discord combat.")
-    temporary_hp: int = Field(default=0)
-    heroic_inspiration: int = Field(default=0, ge=0, le=1)
-    exhaustion_level: int = Field(default=0, ge=0, le=6)
-    death_saves_success: int = Field(default=0, ge=0, le=3)
-    death_saves_failure: int = Field(default=0, ge=0, le=3)
-    action_economy: ActionEconomy = Field(default_factory=ActionEconomy)
-    custom_pools: Dict[str, int] = Field(
-        default_factory=dict, 
-        description="Tracks volatile points spent in chat (e.g., {'ki_points_spent': 2, 'rage_uses_spent': 1})."
-    )
-
-class CharacterSheet(Document):
-    # THE MULTI-KEY IDENTITY ANCHORS (Prevents name duplicate bugs)
-    user_id: Annotated[str, Indexed()] = Field(description="The Discord User ID string mapping ownership of this asset.")
-    dnd_beyond_id: str = Field(description="The unique numeric ID extracted directly from the character link URL.")
-    character_url: str = Field(description="The saved full link to enable quick mid-session re-syncing/pulling.")
+    # Unique internal ID (Linked as a Foreign Key in CharacterRegistry)
+    character_id: Indexed(UUID, unique=True) = Field(default_factory=uuid4)
     
-    # User-facing Display Metric (Mutable, changes if they rename their sheet on D&D Beyond)
-    name: str = Field(description="Character name. Used for search display and chat embeds.")
-    
-    # Flat reference blocks mirrored directly from the latest D&D Beyond API payload snapshot
-    classes_summary: str = Field(description="Captured class breakdown string for display (e.g., 'Paladin 3 / Sorcerer 2').")
-    level: int = 1
+    # Core Identity
+    name: str
     race: str
-    base_armor_class: int
-    speed_ft: int = 30
-    proficiency_bonus: int
+    classes: Dict[str, int] = Field(default_factory=dict) # e.g., {"rogue": 3, "fighter": 2}
+    level: int
     
-    # Stat arrays required by the Python Engine to roll dice
-    ability_modifiers: Dict[str, int] = Field(description="Pre-calculated modifiers from D&D Beyond, e.g., {'str': 3, 'dex': -1}")
-    saving_throw_modifiers: Dict[str, int] = Field(description="Total save modifiers including proficiency, e.g., {'str': 5, 'con': 2}")
-    skill_modifiers: Dict[str, int] = Field(description="Total skill check modifiers including expertise, e.g., {'stealth': 7, 'perception': 1}")
+    # Baseline Combat Stats (The "Ceilings")
+    max_hp: int
+    armor_class: int
+    passive_perception: int
+    speed: int
     
-    # Active Session Tracking Pools
-    resources: ResourcePool
-    status_conditions: List[ConditionType] = Field(default_factory=list)
+    # Core Attributes
+    stats: CharacterStats
     
-    # Simplified Inventory (Just strings/IDs to track weapon names for the chat parser to know what they can attack with)
-    equipped_weapons: List[str] = Field(default_factory=list, description="List of attack weapons available, e.g., ['longsword', 'shortbow']")
-    known_spells: List[str] = Field(default_factory=list, description="List of prepared/known spell names for active engine validation.")
+    # Magic System Ceilings
+    # Maps spell slot levels to their maximum capacity: e.g., {"1": 4, "2": 3, "pact_1": 2}
+    total_spell_slots: Dict[str, int] = Field(default_factory=dict)
     
-    # Current slot ceilings extracted from D&D Beyond. Session tracking modifies 'used' values.
-    spell_slots_max: Dict[str, int] = Field(default_factory=dict, description="Max slots per tier, e.g., {'level_1': 4, 'level_2': 2}")
-    spell_slots_used: Dict[str, int] = Field(default_factory=dict, description="Active expenditure pool tracking spent slots inside the chat session.")
+    # Permanent Inventory & Features
+    # These store "slugs" (e.g., "flame-tongue-longsword") that your engine 
+    # uses to look up mechanical rules from static/item.py or static/spell.py
+    known_spells: List[str] = Field(default_factory=list)
+    inventory_slugs: List[str] = Field(default_factory=list)
+    attuned_items: List[str] = Field(default_factory=list)
     
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    # Wealth
+    gold_pieces: float = 0.0
 
     class Settings:
-        name = "characters"
-        # Compound unique index guarantees a user can name multiple characters whatever they want without key collisions
-        indexes = [
-            [
-                ("user_id", 1),
-                ("dnd_beyond_id", 1)
-            ]
-        ]
+        name = "identity_characters" # Collection name in MongoDB
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "character_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Eldrin",
+                "race": "High Elf",
+                "classes": {"wizard": 5},
+                "level": 5,
+                "max_hp": 32,
+                "armor_class": 15,
+                "passive_perception": 14,
+                "speed": 30,
+                "stats": {
+                    "strength": 8, "dexterity": 14, "constitution": 14,
+                    "intelligence": 18, "wisdom": 12, "charisma": 10
+                },
+                "total_spell_slots": {"1": 4, "2": 3, "3": 2},
+                "known_spells": ["fireball", "mage-armor", "shield"],
+                "inventory_slugs": ["wand-of-magic-missiles", "health-potion"],
+                "attuned_items": ["wand-of-magic-missiles"],
+                "gold_pieces": 145.5
+            }
+        }

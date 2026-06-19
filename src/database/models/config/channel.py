@@ -39,3 +39,5 @@ class ChannelConfig(Document):
                 "is_paused": False
             }
         }
+
+# When an admin runs /whitelist add, the bot creates (or updates) a ChannelConfig document for that channel_id
