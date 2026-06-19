@@ -26,20 +26,38 @@ class CampaignCharacterDelta(BaseModel):
     campaign_loot: List[Dict[str, Any]] = Field(default_factory=list)  # Earned item drops unique to this game
 
 class SavedSessionDelta(Document):
-    """The episodic tracking overlay. Never merged back to the Global Tracker."""
+    """The complete episodic campaign snapshot overlay."""
     campaign_id: Indexed(str, unique=True)
     guild_id: str
-    active_node_id: str  # Tracks current party position within the immutable Node Matrix
+    active_node_id: str
     
-    # State Sandbox Overlays
-    character_deltas: Dict[str, CampaignCharacterDelta] = Field(default_factory=dict)
-    session_room_states: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
-    
-    # Concurrency and UI Prompts
-    # Whichever process grabs this atomic sub-document first wins execution rights
+    character_states: Dict[str, CampaignCharacterState] = Field(default_factory=dict)
+    session_room_states: Dict[str, NodeMutation] = Field(default_factory=dict)
     active_staged_actions: Dict[str, StagedAction] = Field(default_factory=dict)
+    active_encounter: ActiveEncounter = Field(default_factory=ActiveEncounter)
+    campaign_ledger: LongTermCampaignLedger = Field(default_factory=LongTermCampaignLedger)
     
     last_updated: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "saved_session_deltas"
+
+class SessionDelta(Document):
+    """The complete episodic campaign snapshot overlay."""
+    campaign_id: Indexed(str, unique=True)
+    guild_id: str
+    active_node_id: str
+    
+    # Character, Room, and Staged Engine Sandboxes
+    character_states: Dict[str, CampaignCharacterState] = Field(default_factory=dict)
+    session_room_states: Dict[str, NodeMutation] = Field(default_factory=dict)
+    active_staged_actions: Dict[str, StagedAction] = Field(default_factory=dict)
+    
+    # --- Campaign State ---
+    active_encounter: ActiveEncounter = Field(default_factory=ActiveEncounter)
+    campaign_ledger: LongTermCampaignLedger = Field(default_factory=LongTermCampaignLedger)
+    
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+
+    class Settings:
+        name = "session_deltas"
