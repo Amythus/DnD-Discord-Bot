@@ -137,7 +137,7 @@ class Node(Document):
         ]
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "adventure_id": "lost_mine_of_phandelver",
                 "node_id": "cragmaw_hideout_cave_entrance",

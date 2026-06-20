@@ -49,7 +49,7 @@ class ChannelConfig(Document):
 
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "channel_id": 10928374658293,
                 "guild_id": 99887766554433,

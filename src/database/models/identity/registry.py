@@ -32,7 +32,7 @@ class CharacterRegistry(Document):
         name = "identity_registry"  # Collection name inside MongoDB
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "discord_user_id": 123456789012345678,
                 "active_character_id": "550e8400-e29b-41d4-a716-446655440000",

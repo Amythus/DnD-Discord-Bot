@@ -79,7 +79,7 @@ class Monster(Document):
     wisdom: Optional[int] = Field(default=None, alias="wis")
     charisma: Optional[int] = Field(default=None, alias="cha")
     
-    save: Optional[Dict[str, str]] = None
+    saving_throws: Optional[Dict[str, Any]] = Field(default=None, alias="save")
     skill: Optional[Any] = None
     senses: Optional[List[str]] = None
     
@@ -114,5 +114,6 @@ class Monster(Document):
         name = "monsters"
 
     model_config = {
-        "populate_by_name": True
+        "populate_by_name": True,
+        "protected_namespaces": ()
     }
