@@ -1,78 +1,94 @@
-from typing import List, Optional, Dict
+from typing import List, Dict, Any, Optional, Union
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
-from .enums import CreatureSize, AttackType
 
-class MonsterMeta(BaseModel):
-    size: CreatureSize
-    creature_type: str = Field(alias="type")
-    subtype: Optional[str] = None
-    alignment: str
-    challenge_rating: float
-    xp_value: int
+class MonsterTypeDetail(BaseModel):
+    type: str
+    tags: Optional[List[str]] = None
 
-class AttributeScore(BaseModel):
-    score: int
-    modifier: int
+class ArmorClassDetail(BaseModel):
+    ac: int
+    from_source: Optional[List[str]] = Field(default=None, alias="from")
 
-class Attributes(BaseModel):
-    str: AttributeScore
-    dex: AttributeScore
-    con: AttributeScore
-    int: AttributeScore
-    wis: AttributeScore
-    cha: AttributeScore
+    class Config:
+        populate_by_name = True
 
 class HitPoints(BaseModel):
     average: int
-    hit_dice_formula: str
+    formula: Optional[str] = None
 
-class Defenses(BaseModel):
-    armor_class: int
-    armor_type: str
-    hit_points: HitPoints
-    saving_throws: Dict[str, int] = Field(default_factory=dict)
-    damage_immunities: List[str] = Field(default_factory=list)
-    damage_resistances: List[str] = Field(default_factory=list)
-    condition_immunities: List[str] = Field(default_factory=list)
-    vulnerabilities: List[str] = Field(default_factory=list)
-
-class MobilityAndSenses(BaseModel):
-    speed: Dict[str, int]
-    darkvision_ft: int = 0
-    passive_perception: int
-
-class Trait(BaseModel):
+class ActionOrTrait(BaseModel):
     name: str
-    description: str
+    entries: List[Union[str, Dict[str, Any]]]
 
-class MonsterAction(BaseModel):
+class LegendaryGroup(BaseModel):
     name: str
-    type: AttackType
-    hit_modifier: int
-    range_ft: int
-    max_range_ft: Optional[int] = None
-    targets: str
-    damage_formula: str
-    damage_type: str
+    source: str
 
-class LLMContexts(BaseModel):
-    narrative_description: str
-    rules_engine_markdown: str
+class SoundClip(BaseModel):
+    type: str
+    path: str
 
 class Monster(Document):
-    monster_id: Indexed(str, unique=True)
-    name: str
-    source_book: str
-    meta: MonsterMeta
-    attributes: Attributes
-    defenses: Defenses
-    mobility_and_senses: MobilityAndSenses
-    skills: Dict[str, int] = Field(default_factory=dict)
-    languages: List[str] = Field(default_factory=list)
-    traits: List[Trait] = Field(default_factory=list)
-    actions: List[MonsterAction] = Field(default_factory=list)
-    llm_contexts: LLMContexts
+    name: Indexed(str, unique=True) # Ensure optimized unique lookups
+    source: str
+    page: Optional[int] = None
+    srd: Optional[bool] = False
+    referenceSources: Optional[List[str]] = None
+    reprintedAs: Optional[List[str]] = None
+    size: List[str]
+    
+    # Polymorphic field: string ("aberration") or dict ({"type": "humanoid", "tags": [...]})
+    type: Union[str, MonsterTypeDetail]
+    alignment: Optional[List[str]] = None
+    
+    # Polymorphic list: numbers ([12]) or structural dicts ([{"ac": 17, "from": ["natural armor"]}])
+    ac: List[Union[int, ArmorClassDetail]]
+    hp: HitPoints
+    speed: Dict[str, int]
+    
+    # Ability Scores
+    str: int
+    dex: int
+    con: int
+    int: int
+    wis: int
+    cha: int
+    
+    # Optional Mechanics Maps
+    save: Optional[Dict[str, str]] = None
+    skill: Optional[Dict[str, str]] = None
+    senses: Optional[List[str]] = None
+    passive: int
+    languages: Optional[List[str]] = None
+    cr: str # Kept as string to seamlessly store fractional cr values like "1/4" or "1/8"
+    
+    # Rules Blocks
+    trait: Optional[List[ActionOrTrait]] = None
+    action: Optional[List[ActionOrTrait]] = None
+    legendary: Optional[List[ActionOrTrait]] = None
+    legendaryGroup: Optional[LegendaryGroup] = None
+    environment: Optional[List[str]] = None
+    
+    # Metadata Tags
+    soundClip: Optional[SoundClip] = None
+    attachedItems: Optional[List[str]] = None
+    languageTags: Optional[List[str]] = None
+    damageTags: Optional[List[str]] = None
+    damageTagsLegendary: Optional[List[str]] = None
+    conditionInflict: Optional[List[str]] = None
+    conditionInflictLegendary: Optional[List[str]] = None
+    savingThrowForced: Optional[List[str]] = None
+    savingThrowForcedLegendary: Optional[List[str]] = None
+    miscTags: Optional[List[str]] = None
+    
+    # Media structural indicators
+    hasToken: Optional[bool] = False
+    hasFluff: Optional[bool] = False
+    hasFluffImages: Optional[bool] = False
 
     class Settings:
-        name = "monsters"
+        name = "monsters" # MongoDB collection name
+
+    class Config:
+        populate_by_name = True

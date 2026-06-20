@@ -1,6 +1,6 @@
 # root/src/database/models/__init__.py
 from .config.channel import ChannelConfig
-# from .static.monster import Monster
+from .static.monster import Monster
 # from .static.spell import Spell
 # from .static.item import Item
 # from .spatial.node import MapNode
@@ -13,7 +13,7 @@ from .identity.registry import CharacterRegistry
 # Export this list to database/connection.py for beanie.init_beanie()
 __all_models__ = [
     ChannelConfig,
-    # Monster,
+    Monster,
     # Spell,
     # Item,
     # MapNode,
