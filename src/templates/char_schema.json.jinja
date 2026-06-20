@@ -1,0 +1,65 @@
+{
+  "type": "OBJECT",
+  "properties": {
+    "name": { "type": "STRING" },
+    "race": { "type": "STRING" },
+    "classes": {
+      "type": "ARRAY",
+      "items": { "type": "STRING" },
+      "description": "List of classes with levels, e.g. ['Fighter 3', 'Wizard 1']"
+    },
+    "level": { "type": "INTEGER" },
+    "max_hp": { "type": "INTEGER" },
+    "armor_class": { "type": "INTEGER" },
+    "speed": { "type": "INTEGER" },
+    "passive_perception": { "type": "INTEGER" },
+    "total_hit_dice": {
+      "type": "ARRAY",
+      "items": { "type": "STRING" },
+      "description": "List of total hit dice, e.g. ['3d10', '1d6']"
+    },
+    "stats": {
+      "type": "OBJECT",
+      "properties": {
+        "strength": { "type": "INTEGER" },
+        "dexterity": { "type": "INTEGER" },
+        "constitution": { "type": "INTEGER" },
+        "intelligence": { "type": "INTEGER" },
+        "wisdom": { "type": "INTEGER" },
+        "charisma": { "type": "INTEGER" }
+      },
+      "required": ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]
+    },
+    "total_spell_slots": {
+      "type": "OBJECT",
+      "properties": {
+        {% for i in range(1, 10) %}
+        "level_{{ i }}": { "type": "INTEGER" }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      },
+      "required": [
+        {% for i in range(1, 10) %}
+        "level_{{ i }}"{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    },
+    "inventory": { "type": "ARRAY", "items": { "type": "STRING" } },
+    "proficiencies": {
+      "type": "OBJECT",
+      "properties": {
+        "skills": { "type": "ARRAY", "items": { "type": "STRING" } },
+        "tools": { "type": "ARRAY", "items": { "type": "STRING" } },
+        "languages": { "type": "ARRAY", "items": { "type": "STRING" } },
+        "weapons": { "type": "ARRAY", "items": { "type": "STRING" } },
+        "armor": { "type": "ARRAY", "items": { "type": "STRING" } }
+      },
+      "required": ["skills", "tools", "languages", "weapons", "armor"]
+    }
+  },
+  "required": [
+    "name", "race", "classes", "level", "max_hp", 
+    "armor_class", "speed", "passive_perception",
+    "total_hit_dice", "stats", "total_spell_slots", 
+    "inventory", "proficiencies"
+  ]
+}
