@@ -6,7 +6,7 @@ The bot uses a multi-model AI pipeline with MongoDB to track game state and Gemi
 
 ---
 
-[ DISCORD USER PLATFORM ]
+                                [ DISCORD USER PLATFORM ]
                                             │
                     (Message Sent: Does it begin with @botname or prefix?)
                                             │
@@ -98,3 +98,84 @@ The bot uses a multi-model AI pipeline with MongoDB to track game state and Gemi
                                                                          │
                                                                          ▼
                                                              Cinematic Discord Output
+
+---
+
+Session Lifecycle:
+
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 1. SESSION STAGING & COMPOSING PHASE                                   │
+ │                                                                        │
+ │   [GM invokes /start_session command]                                  │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Render Discord View with Dropdown (Pre-seeded modules list)          │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Create Shell Session & Assign Globally Unique session_id (UUID)      │
+ │   (Adventure chosen; structural baseline set)                          │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   [Players invoke /join_session command]                               │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Render Discord View with Dropdown (Pre-imported sheets by discord_id)│
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Execute Out-of-Band Handshake with D&D Beyond API;                   │
+ │   Update Character Registry with Fresh Upstream Absolute Metrics       │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Construct Structural Delta Baseline from Updated Character Registry, │
+ │   & Register Volatile Profile Object to Active Session                 │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 2. RUNTIME ENFORCEMENT & ADVENTURE LOCK IN                             │
+ │                                                                        │
+ │   [GM invokes /begin_adventure command]                                │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Lock Baseline Session Architecture (State setup becomes immutable)   │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Reroute All Live Mutations to Session Delta Transaction Pipeline     │
+ │   ┌──────────────────────────────────────────────────────────────────┐ │
+ │   │  1. Unstructured text captures stream through ChatParserCog      │ │
+ │   │  2. Intercept via Concurrency Lock Manager & StagedAction Cache  │ │
+ │   │  3. Evaluate Inputs + Background Scheduled Events Array Ticks    │ │
+ │   │     against Node Matrix Layout & Rulebook Context Cache          │ │
+ │   │  4. Apply Atomic Operators ($inc, $set) strictly to Delta subdocs│ │
+ │   └──────────────────────────────────────────────────────────────────┘ │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │ 3. TERMINATION & DELTA DATABASE STORAGE                                │
+ │                                                                        │
+ │   [GM invokes /end_session save command]                               │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Bypass Upstream Sync/Merge (No raw character state reconciliation)   │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Generate Fresh snapshot_id (UUID) to Fork Current Frame History       │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Serialize Session Delta Object State Linked to parent session_id      │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Commit Active Delta Stash into MongoDB Document Collections         │
+ │   - Primary ID Key: snapshot_id (Unique state identifier for rollback) │
+ │   - Relational Identifier: session_id (Parent campaign anchor UUID)    │
+ │   - Metadata Stamp: guild_id (Active server tracking coordinate)       │
+ │   - Metadata Stamp: discord_id (Initiating GM anchor marker)           │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Wipe/Reset active_session_id Fields from All Whitelisted             │
+ │   ChannelConfig Documents (Decouples multi-channel locks)              │
+ │                    │                                                   │
+ │                    ▼                                                   │
+ │   Tear Down Context Layers & Clear Channel Concurrency Locks           │
+ └────────────────────────────────────────────────────────────────────────┘
