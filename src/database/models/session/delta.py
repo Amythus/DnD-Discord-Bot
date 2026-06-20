@@ -46,10 +46,11 @@ class EncounterState(BaseModel):
 
 class SessionDelta(Document):
     """The hot cache buffer stack isolating live chaotic gameplay from master sheets."""
-    session_id: Indexed(UUID, unique=True)
+    # session_id: Indexed(UUID, unique=True)
+    session_id: UUID
     
     # ADDED: Discord routing tracking for session lookup/saving
-    guild_id: Indexed(str) 
+    guild_id: str
     initiating_player_id: Optional[str] = None
     
     character_deltas: Dict[UUID, PlayerSessionState] = Field(default_factory=dict)
@@ -60,8 +61,27 @@ class SessionDelta(Document):
     campaign_ledger: CampaignLedger = Field(default_factory=CampaignLedger)
     scheduled_events: List[ScheduledEvent] = Field(default_factory=list)
 
+    # class Settings:
+    #     name = "session_deltas"
+
+    #     indexes = [
+    #         {
+    #             "key": [("session_id", 1)],
+    #             "unique": True
+    #         },
+    #         "guild_id"
+    #     ]
+
     class Settings:
         name = "session_deltas"
+        indexes = [
+            {
+                "key": [("session_id", 1)],
+                "unique": True
+            },
+            "guild_id"
+        ]
+
 
     class Config:
         schema_extra = {

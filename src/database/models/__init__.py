@@ -4,7 +4,7 @@ from .static.monster import Monster
 # from .static.spell import Spell
 # from .static.item import Item
 # from .spatial.node import MapNode
-from .session.session import CampaignSession
+# from .session.session import CampaignSession
 from .session.delta import SessionDelta
 from .identity.character import Character
 from .identity.registry import CharacterRegistry
@@ -17,7 +17,7 @@ __all_models__ = [
     # Spell,
     # Item,
     # MapNode,
-    CampaignSession,
+    # CampaignSession,
     SessionDelta,
     Character,
     CharacterRegistry,

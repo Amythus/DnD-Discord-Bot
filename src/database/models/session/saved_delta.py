@@ -4,6 +4,8 @@ from uuid import UUID
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
 from .delta import PlayerSessionState, EncounterState, CampaignLedger, ScheduledEvent
+from pymongo import IndexModel, ASCENDING, DESCENDING
+
 
 class SavedSessionDelta(Document):
     """
@@ -11,10 +13,12 @@ class SavedSessionDelta(Document):
     Created during the /end_session teardown loop by copying the active SessionDelta.
     """
     # Unique campaign index lookup key
-    session_id: Indexed(UUID)  # Note: Removed unique=True to allow historical snapshot versions
+    # session_id: Indexed(UUID)  # Note: Removed unique=True to allow historical snapshot versions
+    session_id: UUID
     
     # NEW: Secure multi-server routing index matching the initiating environment
-    guild_id: Indexed(str)
+    # guild_id: Indexed(str)
+    guild_id: str
     initiating_player_id: Optional[str] = None
     
     # NEW: Linear ordering metrics to distinguish the absolute latest state (HEAD) 
@@ -38,10 +42,22 @@ class SavedSessionDelta(Document):
     # NEW: Persists un-triggered countdown hooks, traps, or status effects across pauses
     scheduled_events: List[ScheduledEvent] = Field(default_factory=list)
 
+    # class Settings:
+    #     name = "saved_session_deltas"
+    #     indexes = [
+    #         # Single-field index for server routing
+    #         "guild_id",
+
+    #         # Compound indexing to optimize fast HEAD resolution queries on campaign loading
+    #         [("session_id", 1), ("is_active_head", -1)],
+    #         [("session_id", 1), ("sequence_number", -1)]
+    #     ]
+
     class Settings:
         name = "saved_session_deltas"
-        # Compound indexing to optimize fast HEAD resolution queries on campaign loading
         indexes = [
+            "guild_id",
+            
             [("session_id", 1), ("is_active_head", -1)],
             [("session_id", 1), ("sequence_number", -1)]
         ]

@@ -39,7 +39,7 @@ class Character(Document):
     Updated exclusively during mid-week level-ups or out-of-session updates.
     """
     # Relational Identifier
-    character_id: Indexed(UUID, unique=True) = Field(default_factory=uuid4)
+    character_id: UUID = Field(default_factory=uuid4)
     
     # Core Identity
     name: str
@@ -83,8 +83,25 @@ class Character(Document):
     # Synchronization Heartbeat
     last_synced_at: Optional[datetime] = Field(None)
 
+    # class Settings:
+    #     name = "identity_characters"
+
+    #     indexes = [
+    #         {
+    #             "key": [("character_id",1)],
+    #             "unique": True
+    #         }
+    #     ]
+
     class Settings:
         name = "identity_characters"
+        indexes = [
+            {
+                "key": [("character_id", 1)],
+                "unique": True
+            }
+        ]
+
 
     class Config:
         schema_extra = {

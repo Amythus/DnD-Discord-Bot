@@ -5,14 +5,21 @@ from pathlib import Path
 from pymongo import UpdateOne
 
 # Central application hooks
-from src.database.connect import init_database
-from src.database.models import Monster
+from database.connect import init_database
+from database.models import Monster
 
 """ Command to run seeding script
 docker run --rm -it \
   --network dnd_shared_network \
   -e MONGO_URI="mongodb://your_mongo_container_name:27017/dnd_bot_db" \
   your_bot_image_name python -m src.database.seed.seed_monsters
+"""
+
+""" Command to run seeding script
+docker run --rm -it \
+  --network dnd_shared_network \
+  -e MONGO_URI="mongodb://mongodb-dnd:27017/dnd_bot_db" \
+  dnd_discord_bot python -m src.database.seed.seed_monsters
 """
 
 

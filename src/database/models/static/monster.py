@@ -10,8 +10,16 @@ class ArmorClassDetail(BaseModel):
     ac: int
     from_source: Optional[List[str]] = Field(default=None, alias="from")
 
-    class Config:
-        populate_by_name = True
+    # Fixed Configuration Key naming convention for V2
+    model_config = {
+        "populate_by_name": True,
+        "json_schema_extra": {
+            "example": {
+                "ac": 17,
+                "from": ["natural armor"]
+            }
+        }
+    }
 
 class HitPoints(BaseModel):
     average: int
@@ -30,7 +38,7 @@ class SoundClip(BaseModel):
     path: str
 
 class Monster(Document):
-    name: Indexed(str, unique=True) # Ensure optimized unique lookups
+    name: Indexed(str, unique=True)
     source: str
     page: Optional[int] = None
     srd: Optional[bool] = False
@@ -38,16 +46,14 @@ class Monster(Document):
     reprintedAs: Optional[List[str]] = None
     size: List[str]
     
-    # Polymorphic field: string ("aberration") or dict ({"type": "humanoid", "tags": [...]})
     type: Union[str, MonsterTypeDetail]
     alignment: Optional[List[str]] = None
     
-    # Polymorphic list: numbers ([12]) or structural dicts ([{"ac": 17, "from": ["natural armor"]}])
     ac: List[Union[int, ArmorClassDetail]]
     hp: HitPoints
     speed: Dict[str, int]
     
-    # Ability Scores
+    # Core Attributes
     str: int
     dex: int
     con: int
@@ -55,22 +61,23 @@ class Monster(Document):
     wis: int
     cha: int
     
-    # Optional Mechanics Maps
-    save: Optional[Dict[str, str]] = None
+    # CRITICAL REFAC: Renamed variable to prevent shadowing Document.save()
+    saving_throws: Optional[Dict[str, str]] = Field(default=None, alias="save")
+    
     skill: Optional[Dict[str, str]] = None
     senses: Optional[List[str]] = None
     passive: int
     languages: Optional[List[str]] = None
-    cr: str # Kept as string to seamlessly store fractional cr values like "1/4" or "1/8"
+    cr: str
     
-    # Rules Blocks
+    # Mechanics Block Arrays
     trait: Optional[List[ActionOrTrait]] = None
     action: Optional[List[ActionOrTrait]] = None
     legendary: Optional[List[ActionOrTrait]] = None
     legendaryGroup: Optional[LegendaryGroup] = None
     environment: Optional[List[str]] = None
     
-    # Metadata Tags
+    # Metadata Layers
     soundClip: Optional[SoundClip] = None
     attachedItems: Optional[List[str]] = None
     languageTags: Optional[List[str]] = None
@@ -82,13 +89,14 @@ class Monster(Document):
     savingThrowForcedLegendary: Optional[List[str]] = None
     miscTags: Optional[List[str]] = None
     
-    # Media structural indicators
     hasToken: Optional[bool] = False
     hasFluff: Optional[bool] = False
     hasFluffImages: Optional[bool] = False
 
     class Settings:
-        name = "monsters" # MongoDB collection name
+        name = "monsters"
 
-    class Config:
-        populate_by_name = True
+    # Fixed Configuration dictionary usage pattern for Pydantic V2 Document hooks
+    model_config = {
+        "populate_by_name": True
+    }

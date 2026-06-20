@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 
 # Modern architecture hook: Pull your clean centralized model registry 
-from src.database.models import __all_models__
+from database.models import __all_models__
 from config.settings import settings
 
 async def init_database(mongo_uri: Optional[str] = None) -> bool:
@@ -26,6 +26,7 @@ async def init_database(mongo_uri: Optional[str] = None) -> bool:
         # Initialize Beanie dynamically using our centralized array pass
         await init_beanie(
             database=db_handle,
+            # document_models=__all_models__
             document_models=__all_models__
         )
         

@@ -2,6 +2,8 @@ from typing import Optional
 from uuid import UUID
 from beanie import Document, Indexed
 from pydantic import Field
+from pymongo import IndexModel, ASCENDING, DESCENDING
+
 
 class ChannelConfig(Document):
     """
@@ -11,10 +13,10 @@ class ChannelConfig(Document):
     # The Discord ID of the channel where the game is being played.
     # We index this because the Discord bot will query this collection
     # on almost every incoming message to check if it should parse it.
-    channel_id: Indexed(int, unique=True) 
+    channel_id: int
     
     # The ID of the Discord Guild/Server (useful for multi-tenant cleanup)
-    guild_id: Indexed(int) 
+    guild_id: int
     
     # The UUID of the active CampaignSession running in this channel.
     # If None, no active game is currently running here.
@@ -26,8 +28,27 @@ class ChannelConfig(Document):
     # A toggle to pause the bot from reading this channel without ending the session
     is_paused: bool = Field(default=False)
 
+    # class Settings:
+    #     name = "config_channels" # The name of the MongoDB collection
+
+    #     indexes = [
+    #         {
+    #             "key": [("channel_id", 1)],
+    #             "unique": True
+    #         },
+    #         "guild_id"
+    #     ]
+
     class Settings:
-        name = "config_channels" # The name of the MongoDB collection
+        name = "config_channels" 
+        indexes = [
+            {
+                "key": [("channel_id", 1)],
+                "unique": True
+            },
+            "guild_id"
+        ]
+
 
     class Config:
         schema_extra = {
