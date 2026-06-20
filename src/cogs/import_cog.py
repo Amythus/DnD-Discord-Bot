@@ -23,7 +23,7 @@ class ImportCog(commands.Cog):
             # 3. Successful Upsert Formatting
             embed = discord.Embed(
                 title="Character Synced Successfully!",
-                description=f"**{character.name}** (Level {character.level} {character.race})\nhas been securely added to the Global Tracker.",
+                description=f"**{character.name}** (Level {character.level} {character.race})\nhas been securely registered to your discord id.",
                 color=discord.Color.green()
             )
             
