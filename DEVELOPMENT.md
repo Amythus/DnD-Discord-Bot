@@ -12,9 +12,16 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 
 ## Database Schema
 [] 🔵 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors
-    [x] 🟢 📜 Monster
-    [x] 🟢 📜 Character
-    [x] 🟢 📜 Player Registry
+    [x] 🟢 Monster
+    [x] 🟢 Character
+    [x] 🟢 Channel
+    [x] 🟢 Spell
+    [x] 🟢 Player Registry
+    [x] 🟢 Delta
+    [x] 🟢 Saved_Delta
+    [] 🔴 Item
+    [] 🔴 Node
+    [] 🔴 Cache
 
 ## Ingestion Engine
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
@@ -39,8 +46,8 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
 
 ## 📦 Discord Bot
-[] 🔴 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
-    [] 🔴 Discord Cogs to compartmentalize @commands, /commands, and event listeners
+[x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
+    [] 🔵 Discord Cogs to compartmentalize @commands, /commands, and event listeners
 
 ## 🗺️ Spatial Routing Engine (Node Matrix)
 The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.
