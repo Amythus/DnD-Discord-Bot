@@ -6,6 +6,10 @@ import httpx
 docker exec -it dnd_discord_bot python -m database.seed.pull_bestiary
 """
 
+# Homebrew 5etools mirror
+# https://github.com/TheGiddyLimit/homebrew/tree/master/collection
+
+
 # Target Repository Parameters
 REPO_OWNER = "5etools-mirror-3"
 REPO_NAME = "5etools-src"
