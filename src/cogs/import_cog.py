@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from services.ddb_parser import DDBParserService
+from services.ddb_parser import DDBIngestorService
 
 class ImportCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -15,7 +15,7 @@ class ImportCog(commands.Cog):
         
         try:
             # 2. Pass to the parsing engine, injecting the Discord Owner ID to prevent state drift
-            character = await DDBParserService.import_character(
+            character = await DDBIngestorService.import_character(
                 dndb_url=character_link, 
                 discord_user_id=interaction.user.id
             )

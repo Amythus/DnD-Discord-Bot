@@ -13,7 +13,7 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 ## Ingestion Engine
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
 
-[] 🔴 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
+[x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown file and json bestiary
     [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Campaign Nodes with all relevant fields: campaign_id, room descriptions, etc.
     [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested monster list json file populated campaign specific monsters into the Monster collection database.

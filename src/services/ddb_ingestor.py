@@ -2,6 +2,8 @@ import re
 import json
 import httpx
 import asyncio
+import datetime
+
 from typing import Optional
 from google.genai import types
 
@@ -13,13 +15,9 @@ from services.template_service import TemplateService
 from database.models.identity.character import Character 
 
 
-class DDBParserService:
+class DDBIngestorService:
     @staticmethod
-    def extract_id_from_url(url: str) -> Optional[str]:
-        # """Robust ID Extraction: Extracts the character ID safely from a full URL or flat integer input."""
-        # match = re.search(r'(\d+)$', url)
-        # return match.group(1) if match else (url if url.isdigit() else None)
-        
+    def extract_id_from_url(url: str) -> Optional[str]: 
         """
         Robust ID Extraction: Extracts the character ID safely from a full URL, 
         even if it includes trailing slug hashes (e.g., /nXz4Zb), or a flat integer input.
@@ -38,12 +36,12 @@ class DDBParserService:
 
     @staticmethod
     async def import_character(dndb_url: str, discord_user_id: int) -> Character:
-        character_id = DDBParserService.extract_id_from_url(dndb_url)
+        character_id = DDBIngestorService.extract_id_from_url(dndb_url)
         if not character_id:
             raise ValueError("Invalid D&D Beyond URL or Character ID.")
         
         # 1. Fetch raw character context data from the endpoint
-        raw_ddb_json = await DDBParserService.fetch_ddb_data(character_id)
+        raw_ddb_json = await DDBIngestorService.fetch_ddb_data(character_id)
         
         # 2. Leverage your centralized TemplateService to resolve paths and build schemas
 
@@ -84,17 +82,30 @@ class DDBParserService:
         
         # --- Map Transformations ---
         stats_data = parsed_json.get("stats", {})
-        db_stats = {k: stats_data.get(k, 10) for k in ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"]}
+        db_stats = {
+            "strength": stats_data.get("strength", 10),
+            "dexterity": stats_data.get("dexterity", 10),
+            "constitution": stats_data.get("constitution", 10),
+            "intelligence": stats_data.get("intelligence", 10),
+            "wisdom": stats_data.get("wisdom", 10),
+            "charisma": stats_data.get("charisma", 10),
+        }
 
-        spell_slots_data = parsed_json.get("total_spell_slots", {})
-        db_spell_slots = {str(i): spell_slots_data[f"level_{i}"] for i in range(1, 10) if spell_slots_data.get(f"level_{i}", 0) > 0}
+        # Simplified: Spell slots directly output string keys like {"1": 4} inside schema
+        db_spell_slots = {
+            str(k): int(v) 
+            for k, v in parsed_json.get("total_spell_slots", {}).items() 
+            if int(v or 0) > 0
+        }
 
+        # Map classes back to a nested dictionary array safely
         db_classes = {}
         for cls_str in parsed_json.get("classes", []):
             parts = cls_str.rsplit(' ', 1)
             if len(parts) == 2 and parts[1].isdigit():
-                db_classes[parts[0]] = int(parts[1])
+                db_classes[parts[0].lower()] = int(parts[1])
 
+        # Hydrate array strings like ["3d8", "1d10"] cleanly into {"d8": 3, "d10": 1}
         db_hit_dice = {}
         for hd_str in parsed_json.get("total_hit_dice", []):
             if 'd' in hd_str:
@@ -102,38 +113,52 @@ class DDBParserService:
                 if num.isdigit() and die.isdigit():
                     db_hit_dice[f"d{die}"] = int(num)
 
-        # --- Dynamic Keyword Mapping Construction ---
+        # Directly unpack parsed structural sub-objects or fallback to defaults
+        prof_data = parsed_json.get("proficiencies", {})
+
+        # --- Construct Clean Keyword Dictionary Arguments ---
         insert_kwargs = {
-            "discord_user_id": discord_user_id,
-            "heroic_inspiration": False,
-            "campaign_id": None,
-            "name": parsed_json.get("name", "Unknown Character"),
+            "name": parsed_json.get("name", "Unknown Hero"),
             "race": parsed_json.get("race", "Unknown Race"),
             "classes": db_classes,
             "level": parsed_json.get("level", 1),
             "max_hp": parsed_json.get("max_hp", 10),
             "armor_class": parsed_json.get("armor_class", 10),
+            "initiative_modifier": parsed_json.get("initiative_modifier", 0),
             "speed": parsed_json.get("speed", 30),
             "passive_perception": parsed_json.get("passive_perception", 10),
-            "total_hit_dice": db_hit_dice,
+            "passive_investigation": parsed_json.get("passive_investigation", 10),
+            "passive_insight": parsed_json.get("passive_insight", 10),
             "stats": db_stats,
+            "proficiencies": {
+                "saving_throws": prof_data.get("saving_throws", []),
+                "skills": prof_data.get("skills", []),
+                "expertise": prof_data.get("expertise", []),
+                "weapons": prof_data.get("weapons", []),
+                "armor": prof_data.get("armor", []),
+                "tools": prof_data.get("tools", []),
+                "languages": prof_data.get("languages", [])
+            },
+            "feats": parsed_json.get("feats", []),
+            "passive_features": parsed_json.get("passive_features", []),
             "total_spell_slots": db_spell_slots,
-            "inventory": parsed_json.get("inventory", []),
-            "proficiencies": parsed_json.get("proficiencies", {})
+            "total_hit_dice": db_hit_dice,
+            "known_spells": parsed_json.get("known_spells", []),
+            "inventory_slugs": parsed_json.get("inventory_slugs", []),
+            "attuned_items": parsed_json.get("attuned_items", []),
+            "gold_pieces": float(parsed_json.get("gold_pieces", 0.0)),
+            "last_synced_at": datetime.datetime.now(datetime.timezone.utc)
         }
 
-        # Handle field alias fallback between dndb_character_id vs dnd_beyond_character_id
-        target_field = "dndb_character_id" if hasattr(Character, "dndb_character_id") else "dnd_beyond_character_id"
-        insert_kwargs[target_field] = character_id
-        insert_kwargs["dndb_uri"] = dndb_url
-
-        existing_char = await Character.find_one({target_field: character_id})
-        new_character = Character(**insert_kwargs)
-
+        # Beanie document search query block (Matches schema unique indexing requirements)
+        existing_char = await Character.find_one({"discord_user_id": discord_user_id})
+        
         if existing_char:
-            new_character.id = existing_char.id
+            # Transfer baseline key IDs before running replacements
+            new_character = Character(id=existing_char.id, character_id=existing_char.character_id, **insert_kwargs)
             await new_character.replace()
         else:
+            new_character = Character(**insert_kwargs)
             await new_character.save()
             
         return new_character
