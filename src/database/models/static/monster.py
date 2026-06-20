@@ -22,7 +22,8 @@ class ArmorClassDetail(BaseModel):
     }
 
 class HitPoints(BaseModel):
-    average: int
+    # FIX 1: Make average optional to handle companion scaling/narrative hp
+    average: Optional[int] = None
     formula: Optional[str] = None
     special: Optional[Union[str, Dict[str, Any]]] = None
 
@@ -45,34 +46,33 @@ class Monster(Document):
     srd: Optional[Union[bool, str]] = False
     referenceSources: Optional[List[str]] = None
     reprintedAs: Optional[List[str]] = None
-    size: List[str]
+    size: Optional[List[str]] = None  # Softened for minimal placeholders
     
     # Structural updates for Humanoid tags
-    type: Union[str, MonsterTypeDetail, Dict[str, Any]]
+    type: Optional[Union[str, MonsterTypeDetail, Dict[str, Any]]] = None
     
     # Fixed Cloud Giant / Empyrean percentage arrays
     alignment: Optional[List[Union[str, Dict[str, Any]]]] = None
     
-    ac: List[Union[int, ArmorClassDetail, Dict[str, Any]]]
-    hp: HitPoints
+    # FIX 2: Soften core stats to Optional to support narrative/placeholder NPCs
+    ac: Optional[List[Union[int, ArmorClassDetail, Dict[str, Any]]]] = None
+    hp: Optional[HitPoints] = None
+    speed: Optional[Dict[str, Union[int, bool, Dict[str, Any]]]] = None
     
-    # Fixed Air Elemental hover/Werewolf shape conditions
-    speed: Dict[str, Union[int, bool, Dict[str, Any]]]
-    
-    # Core Attributes (Renamed 'int' attribute to prevent module-level namespace conflicts)
-    str: int
-    dex: int
-    con: int
-    intelligence: int = Field(alias="int")
-    wis: int
-    cha: int
+    # Core Attributes made optional to prevent crashes on non-combatant tokens
+    str: Optional[int] = None
+    dex: Optional[int] = None
+    con: Optional[int] = None
+    intelligence: Optional[int] = Field(default=None, alias="int")
+    wis: Optional[int] = None
+    cha: Optional[int] = None
     
     # Prevent shadowing Document.save()
     saving_throws: Optional[Dict[str, int]] = Field(default=None, alias="save")
     
     skill: Optional[Dict[str, Union[int, str]]] = None
     senses: Optional[List[str]] = None
-    passive: Union[int, str]
+    passive: Optional[Union[int, str]] = None
     languages: Optional[List[str]] = None
     
     # Fixed Beholder lair action modifications
@@ -92,21 +92,4 @@ class Monster(Document):
     soundClip: Optional[SoundClip] = None
     attachedItems: Optional[List[str]] = None
     languageTags: Optional[List[str]] = None
-    damageTags: Optional[List[str]] = None
-    damageTagsLegendary: Optional[List[str]] = None
-    conditionInflict: Optional[List[str]] = None
-    conditionInflictLegendary: Optional[List[str]] = None
-    savingThrowForced: Optional[List[str]] = None
-    savingThrowForcedLegendary: Optional[List[str]] = None
-    miscTags: Optional[List[str]] = None
-    
-    hasToken: Optional[bool] = False
-    hasFluff: Optional[bool] = False
-    hasFluffImages: Optional[bool] = False
-
-    class Settings:
-        name = "monsters"
-
-    model_config = {
-        "populate_by_name": True
-    }
+    damageTags: Optional
