@@ -4,13 +4,13 @@ from pydantic import BaseModel, Field
 
 class MonsterTypeDetail(BaseModel):
     type: str
-    tags: Optional[List[str]] = None
+    tags: Optional[List[Union[str, Dict[str, Any]]]] = None
 
 class ArmorClassDetail(BaseModel):
     ac: int
     from_source: Optional[List[str]] = Field(default=None, alias="from")
+    condition: Optional[str] = None
 
-    # Fixed Configuration Key naming convention for V2
     model_config = {
         "populate_by_name": True,
         "json_schema_extra": {
@@ -24,6 +24,7 @@ class ArmorClassDetail(BaseModel):
 class HitPoints(BaseModel):
     average: int
     formula: Optional[str] = None
+    special: Optional[Union[str, Dict[str, Any]]] = None
 
 class ActionOrTrait(BaseModel):
     name: str
@@ -41,39 +42,49 @@ class Monster(Document):
     name: Indexed(str, unique=True)
     source: str
     page: Optional[int] = None
-    srd: Optional[bool] = False
+    srd: Optional[Union[bool, str]] = False
     referenceSources: Optional[List[str]] = None
     reprintedAs: Optional[List[str]] = None
     size: List[str]
     
-    type: Union[str, MonsterTypeDetail]
-    alignment: Optional[List[str]] = None
+    # Structural updates for Humanoid tags
+    type: Union[str, MonsterTypeDetail, Dict[str, Any]]
     
-    ac: List[Union[int, ArmorClassDetail]]
+    # Fixed Cloud Giant / Empyrean percentage arrays
+    alignment: Optional[List[Union[str, Dict[str, Any]]]] = None
+    
+    ac: List[Union[int, ArmorClassDetail, Dict[str, Any]]]
     hp: HitPoints
-    speed: Dict[str, int]
     
-    # Core Attributes
+    # Fixed Air Elemental hover/Werewolf shape conditions
+    speed: Dict[str, Union[int, bool, Dict[str, Any]]]
+    
+    # Core Attributes (Renamed 'int' attribute to prevent module-level namespace conflicts)
     str: int
     dex: int
     con: int
-    int: int
+    intelligence: int = Field(alias="int")
     wis: int
     cha: int
     
-    # CRITICAL REFAC: Renamed variable to prevent shadowing Document.save()
-    saving_throws: Optional[Dict[str, str]] = Field(default=None, alias="save")
+    # Prevent shadowing Document.save()
+    saving_throws: Optional[Dict[str, int]] = Field(default=None, alias="save")
     
-    skill: Optional[Dict[str, str]] = None
+    skill: Optional[Dict[str, Union[int, str]]] = None
     senses: Optional[List[str]] = None
-    passive: int
+    passive: Union[int, str]
     languages: Optional[List[str]] = None
-    cr: str
+    
+    # Fixed Beholder lair action modifications
+    cr: Optional[Union[str, Dict[str, Any]]] = None
     
     # Mechanics Block Arrays
     trait: Optional[List[ActionOrTrait]] = None
     action: Optional[List[ActionOrTrait]] = None
+    bonus: Optional[List[ActionOrTrait]] = None
+    reaction: Optional[List[ActionOrTrait]] = None
     legendary: Optional[List[ActionOrTrait]] = None
+    mythic: Optional[List[ActionOrTrait]] = None
     legendaryGroup: Optional[LegendaryGroup] = None
     environment: Optional[List[str]] = None
     
@@ -96,7 +107,6 @@ class Monster(Document):
     class Settings:
         name = "monsters"
 
-    # Fixed Configuration dictionary usage pattern for Pydantic V2 Document hooks
     model_config = {
         "populate_by_name": True
     }
