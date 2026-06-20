@@ -3,6 +3,8 @@ from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
+from pymongo import IndexModel, ASCENDING, DESCENDING
+
 
 class CampaignLedger(BaseModel):
     """Tracks narrative progress and world state adjustments for LLM consistency."""
@@ -74,11 +76,9 @@ class SessionDelta(Document):
 
     class Settings:
         name = "session_deltas"
+        
         indexes = [
-            {
-                "key": [("session_id", 1)],
-                "unique": True
-            },
+            IndexModel([("session_id", ASCENDING)], unique=True),
             "guild_id"
         ]
 

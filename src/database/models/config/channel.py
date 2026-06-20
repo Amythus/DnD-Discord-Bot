@@ -41,11 +41,9 @@ class ChannelConfig(Document):
 
     class Settings:
         name = "config_channels" 
+        
         indexes = [
-            {
-                "key": [("channel_id", 1)],
-                "unique": True
-            },
+            IndexModel([("channel_id", ASCENDING)], unique=True),
             "guild_id"
         ]
 

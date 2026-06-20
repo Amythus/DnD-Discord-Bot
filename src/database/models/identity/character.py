@@ -3,6 +3,8 @@ from uuid import UUID, uuid4
 from datetime import datetime
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
+from pymongo import IndexModel, ASCENDING, DESCENDING
+
 
 class CharacterStats(BaseModel):
     """Sub-model for core D&D attributes."""
@@ -95,11 +97,9 @@ class Character(Document):
 
     class Settings:
         name = "identity_characters"
+        # Use IndexModel explicitly for the unique constraint
         indexes = [
-            {
-                "key": [("character_id", 1)],
-                "unique": True
-            }
+            IndexModel([("character_id", ASCENDING)], unique=True)
         ]
 
 

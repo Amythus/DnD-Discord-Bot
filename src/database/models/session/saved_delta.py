@@ -57,7 +57,8 @@ class SavedSessionDelta(Document):
         name = "saved_session_deltas"
         indexes = [
             "guild_id",
-            
+            # Ensure these are native lists of tuples
             [("session_id", 1), ("is_active_head", -1)],
             [("session_id", 1), ("sequence_number", -1)]
         ]
+        
