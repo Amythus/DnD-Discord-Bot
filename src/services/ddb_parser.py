@@ -1,36 +1,30 @@
 import re
 import json
 import httpx
-from pathlib import Path
-from typing import List, Optional
-from jinja2 import Template
-from google import genai
+import asyncio
+from typing import Optional
 from google.genai import types
 
-from config.settings import settings
-from database.models.identity.character import Character
+# Import your centralized services
+from services.gemini_client import gemini_service
+from services.template_service import TemplateService
 
-client = genai.Client(api_key=settings.gemini_api_key)
-
-# -------------------------------------------------------------
-# Dynamic Schema Bootstrapping via Jinja2 File Compacting
-# -------------------------------------------------------------
-TEMPLATE_PATH = Path(__file__).parent.parent / "templates" / "char_schema.json.j2"
-with open(TEMPLATE_PATH, "r") as f:
-    schema_template = Template(f.read())
-
-# Render template and convert stringified JSON back into a native dict
-rendered_schema_dict = json.loads(schema_template.render())
-
-# Hydrate the raw dictionary definition straight into an SDK Schema Instance
-CHAR_RESPONSE_SCHEMA = types.Schema.model_validate(rendered_schema_dict)
+# Your database model dependency
+from database.models.identity.character import Character 
 
 
 class DDBParserService:
     @staticmethod
     def extract_id_from_url(url: str) -> Optional[str]:
-        """Robust ID Extraction: Extracts the character ID safely from a full URL or flat integer input."""
-        match = re.search(r'(\d+)$', url)
+        # """Robust ID Extraction: Extracts the character ID safely from a full URL or flat integer input."""
+        # match = re.search(r'(\d+)$', url)
+        # return match.group(1) if match else (url if url.isdigit() else None)
+        
+        """
+        Robust ID Extraction: Extracts the character ID safely from a full URL, 
+        even if it includes trailing slug hashes (e.g., /nXz4Zb), or a flat integer input.
+        """
+        match = re.search(r'/characters/(\d+)', url) or re.search(r'(\d+)', url)
         return match.group(1) if match else (url if url.isdigit() else None)
 
     @staticmethod
@@ -48,21 +42,45 @@ class DDBParserService:
         if not character_id:
             raise ValueError("Invalid D&D Beyond URL or Character ID.")
         
+        # 1. Fetch raw character context data from the endpoint
         raw_ddb_json = await DDBParserService.fetch_ddb_data(character_id)
         
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite',
-            contents=f"Extract the character sheet from this JSON data: {json.dumps(raw_ddb_json)}",
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=CHAR_RESPONSE_SCHEMA,
-            ),
+        # 2. Leverage your centralized TemplateService to resolve paths and build schemas
+
+        template_engine = TemplateService(templates_dir="templates")
+        
+        # Extract the schema definitions safely through your engine
+        raw_schema_string = template_engine.render_prompt(
+            "char_schema.json.jinja", 
+            raw_character_data=json.dumps(raw_ddb_json)
         )
+        
+        # Parse it out into a dictionary structure and validate it into an SDK-compliant Schema object
+        schema_dict = json.loads(raw_schema_string)
+        validated_api_schema = types.Schema.model_validate(schema_dict)
+
+        # 3. Pull the internal raw Gemini client
+        raw_client = gemini_service.get_client()
+
+        # 4. Offload the synchronous SDK blocking generation request into an async worker thread
+        def _call_gemini_api():
+            return raw_client.models.generate_content(
+                model=gemini_service.model_name, # Managed dynamically via your GeminiService wrapper
+                contents=f"Extract the character sheet from this JSON data: {json.dumps(raw_ddb_json)}",
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=validated_api_schema, # Passing down the hydrated SDK Schema object
+                ),
+            )
+
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, _call_gemini_api)
         
         if not response.text:
             raise RuntimeError("Gemini failed to generate a structured parsed response.")
             
-        parsed_json = json.loads(response.text)
+        # Clean potential markdown block pollution before evaluating JSON
+        parsed_json = template_engine.clean_json_response(response.text)
         
         # --- Map Transformations ---
         stats_data = parsed_json.get("stats", {})
