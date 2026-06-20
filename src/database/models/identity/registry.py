@@ -3,7 +3,7 @@ from uuid import UUID
 from beanie import Document, Indexed
 from pydantic import HttpUrl, Field
 
-class CharacterRegistry(Document):
+class PlayerRegistry(Document):
     """
     The relational mapper for account-level identity linking.
     Stitches Discord identities, D&D Beyond URIs, local Character records,

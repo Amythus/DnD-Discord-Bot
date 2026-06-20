@@ -10,13 +10,18 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 [x] 🟢 Test Case [Database Initialization]: Assert that the database connection is established and the collections are created successfully.
 [x] 🟢 Test Case [Discord Bot Initialization]: Bot connects to discord and responds to a ping command.
 
+## Database Schema
+[] 🔵 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors
+    [x] 🟢 📜 Monster
+    [x] 🟢 📜 Character
+    [x] 🟢 📜 Player Registry
+
 ## Ingestion Engine
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
-[] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown file and json bestiary
-    [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Campaign Nodes with all relevant fields: campaign_id, room descriptions, etc.
-    [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested monster list json file populated campaign specific monsters into the Monster collection database.
+[] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown or pdf
+[] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Nodes Matrix with all relevant fields: campaign_id, room descriptions, etc.
 
 ## Seeding Database
 [] 🔴 Test Case [Seed Data]: Assert that the json files 5e repo can be parsed and inserted into database
@@ -32,12 +37,6 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [x] 🟢 MToF: Mordenkainen's Tome of Foes 2025
 [] 🔴 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
-
-## Database Schema
-[] 🔴 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors
-    [] 🔴 📜 Monster
-    [] 🔴 📜 Character
-    [] 🔴 📜 Global State Tracker
 
 ## 📦 Discord Bot
 [] 🔴 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with

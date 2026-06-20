@@ -7,7 +7,7 @@ from .static.spell import Spell
 # from .session.session import CampaignSession
 from .session.delta import SessionDelta
 from .identity.character import Character
-from .identity.registry import CharacterRegistry
+from .identity.registry import PlayerRegistry
 # from .llm.cache import RulebookCacheMetadata
 
 # Export this list to database/connection.py for beanie.init_beanie()
@@ -20,6 +20,6 @@ __all_models__ = [
     # CampaignSession,
     SessionDelta,
     Character,
-    CharacterRegistry,
+    PlayerRegistry,
     # RulebookCacheMetadata
 ]
