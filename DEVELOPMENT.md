@@ -19,18 +19,19 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested monster list json file populated campaign specific monsters into the Monster collection database.
 
 ## Seeding Database
-[] 🔴 Test Case [Seed Data]: Assert that the markdown files provided can be parsed and inserted into database
+[] 🔴 Test Case [Seed Data]: Assert that the json files 5e repo can be parsed and inserted into database
     [] 🔴 PHB: Players Handbook 2024
     [] 🔴 DMG: Dungeon Masters Guide 2024
-    [] 🔴 MM: Monster Manual 2024
     [] 🔴 XGE: Xanathar's Guide to Everything 2024 (Optional)
     [] 🔴 TCE: Tasha's Cauldron of Everything 2024 (Optional)
     [] 🔴 VGtM: Volo's Guide to Monsters 2024 (Optional)
     [] 🔴 MToF: Mordenkainen's Tome of Foes 2024 (Optional)
-[] 🔴 Test Case [Seed Data]: Assert that base DnD bestiary is populated into the Monster collection database
-    [] 🔴 MM: Monster Manual 2025
-    [] 🔴 VGtM: Volo's Guide to Monsters 2025
-    [] 🔴 MToF: Mordenkainen's Tome of Foes 2025
+[x] 🟢 Test Case [Seed Data]: Assert that base DnD bestiary is populated into the Monster collection database
+    [x] 🟢 MM: Monster Manual 2025
+    [x] 🟢 VGtM: Volo's Guide to Monsters 2025
+    [x] 🟢 MToF: Mordenkainen's Tome of Foes 2025
+[] 🔴 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
+[x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
 
 ## Database Schema
 [] 🔴 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors

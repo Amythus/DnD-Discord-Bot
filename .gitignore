@@ -7,3 +7,6 @@ raw_pdf/
 markdown_pdf/
 __pycache__
 bestiary/
+spells/
+items/
+adventures/

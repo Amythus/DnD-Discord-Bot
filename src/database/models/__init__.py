@@ -1,7 +1,7 @@
 # root/src/database/models/__init__.py
 from .config.channel import ChannelConfig
 from .static.monster import Monster
-# from .static.spell import Spell
+from .static.spell import Spell
 # from .static.item import Item
 # from .spatial.node import MapNode
 # from .session.session import CampaignSession
@@ -14,7 +14,7 @@ from .identity.registry import CharacterRegistry
 __all_models__ = [
     ChannelConfig,
     Monster,
-    # Spell,
+    Spell,
     # Item,
     # MapNode,
     # CampaignSession,
