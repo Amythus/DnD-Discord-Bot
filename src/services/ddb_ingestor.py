@@ -40,21 +40,13 @@ class DDBIngestorService:
         
         print("🤖 Dispatching parsing request to Gemini API (Locked Structural Schema Mode)...")
 
-        # 4. Generate structured output
-        response = client.models.generate_content(
+        # 4. Generate structured output 
+        parsed_dto = await gemini_service.generate_structured_output(
             model='gemini-3.1-flash-lite',
             contents=compiled_prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_json_schema": DDBParsedCharacterDTO.model_json_schema()
-            }
+            response_schema=DDBParsedCharacterDTO # Pass the model type directly
         )
 
-        print("✅ Successfully parsed character data into structured JSON.")
-        
-        # 5. Load the validated JSON
-        parsed_dto = DDBParsedCharacterDTO.model_validate_json(response.text)
-        
         # Registry Handshake with character-player registry
         registry = await PlayerRegistry.find_one(
             PlayerRegistry.discord_user_id == discord_user_id,

@@ -1,54 +1,73 @@
-import os
-import datetime
+import json
+from typing import Type, Any, Dict, Union
 from google import genai
 from google.genai import types
-from google.genai.errors import APIError
+from pydantic import BaseModel
 from config.settings import settings
 
 class GeminiService:
-    """
-    Central management layer for the Google Gemini API. Handles type-safe client 
-    initialization and implements sliding window context caching for long modules.
-    """
     def __init__(self):
-        # Initialize using the official canonical SDK and validated Pydantic settings
-        self.client = genai.Client(api_key=settings.gemini_api_key)
-        self.model_name = "gemini-3.1-flash-lite"
-
-    def get_client(self) -> genai.Client:
-        """Exposes the raw authenticated client for direct cog operations."""
-        return self.client
-
-    def bump_context_cache_ttl(self, cache_id: str, extension_minutes: int = 30) -> bool:
         """
-        Dynamically pushes the expiration timestamp of a cached campaign module file
-        into the future. Keeps the cache warm during active play and allows automatic 
-        garbage collection when players log off.
+        Central management layer for the Google Gemini API.
+        Initializes split clients to separate Free vs Paid tier projects seamlessly.
         """
-        try:
-            # 1. Establish the future target time window based on current UTC clock
-            future_expiry = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=extension_minutes)
-            
-            # 2. Format explicitly into a strict RFC 3339 string layout required by Google
-            rfc3339_timestamp = future_expiry.strftime('%Y-%m-%dT%H:%M:%SZ')
-            
-            # 3. Fire the update pointer mutation down the cloud pipe
-            self.client.caches.update(
-                name=cache_id,
-                config=types.UpdateCachedContentConfig(
-                    expire_time=rfc3339_timestamp
-                )
-            )
-            print(f"❄️ Context Cache '{cache_id}' extended successfully. New Expiry: {rfc3339_timestamp}")
-            return True
+        # Project A: Free Tier Client (Chat, Narrative Parsers, DDB Ingestion)
+        self.free_client = genai.Client(api_key=settings.gemini_api_key)
+        
+        # Project B: Paid Tier Client (Rule Adjudicator / Context Cache lookups)
+        # Fallback to free key if you haven't split them out in settings yet
+        paid_key = getattr(settings, "paid_gemini_api_key", settings.gemini_api_key)
+        self.paid_client = genai.Client(api_key=paid_key)
 
-        except APIError as e:
-            # Catch API edge cases cleanly (e.g., if a cache unexpectedly expired or was dropped)
-            print(f"⚠️ Failed to slide Context Cache TTL window for '{cache_id}': {e}")
-            return False
-        except Exception as e:
-            print(f"❌ Unexpected system failure during cache TTL extension: {e}")
-            return False
+    def get_client(self, use_paid: bool = False) -> genai.Client:
+        """Helper to safely route requests to the correct Google Cloud wallet project."""
+        return self.paid_client if use_paid else self.free_client
 
-# Instantiate a single global instance of the service layer to share across Cogs
+    async def generate_structured_output(
+        self,
+        model: str,
+        contents: Union[str, list],
+        response_schema: Type[BaseModel],
+        use_paid: bool = False,
+        config_overrides: Dict[str, Any] = None
+    ) -> BaseModel:
+        """
+        Consumes unstructured layouts or tokens, enforces strict structural contracts,
+        bypasses client-side validation blockers, and returns a fully initialized Pydantic DTO.
+        """
+        client = self.get_client(use_paid=use_paid)
+        
+        # 1. Bypass client-side validation errors by generating the JSON schema explicitly
+        # and passing it directly to the API backend through response_json_schema.
+        # This completely resolves the "additionalProperties is only supported in Enterprise" crash.
+        base_config = {
+            "response_mime_type": "application/json",
+            "response_json_schema": response_schema.model_json_schema(),
+            "temperature": 0.1  # Enforce structural determinism
+        }
+        
+        if config_overrides:
+            base_config.update(config_overrides)
+            
+        # Convert dictionary settings cleanly into the SDK's required config structure
+        api_config = types.GenerateContentConfig(**base_config)
+
+        # 2. Execute call via the raw under-the-hood engine loops
+        # If your environment requires async/await loop calls, verify if client uses:
+        # response = await client.aio.models.generate_content(...)
+        response = client.models.generate_content(
+            model=model,
+            contents=contents,
+            config=api_config
+        )
+
+        if not response.text:
+            raise ValueError("The Gemini API engine returned an empty data response.")
+
+        # 3. Handle Native Deserialization on the way out.
+        # Unpack the raw JSON string directly into the requested Pydantic DTO type contract.
+        parsed_json = json.loads(response.text)
+        return response_schema(**parsed_json)
+
+# Instantiate as a global singleton service instance
 gemini_service = GeminiService()
