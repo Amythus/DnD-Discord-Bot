@@ -32,7 +32,7 @@ class DDBIngestorService:
 
         # 2. Instantiate the Template Engine and render the Jinja prompt
         template_engine = TemplateService()
-        prompt_text = template_engine.render_prompt("char_schema.jinja", data=raw_ddb_data)
+        prompt_text = template_engine.render_prompt("ddb_ingestion_prompt.jinja", data=raw_ddb_data)
         
         # 3. Request the centralized client
         client = gemini_service.get_client() 
@@ -50,7 +50,6 @@ class DDBIngestorService:
         )
 
         print("✅ Successfully parsed character data into structured JSON.")
-        print(response.text)  # Debug: Print
         
         # 5. Load the validated JSON
         # parsed_json = json.loads(response.text)
