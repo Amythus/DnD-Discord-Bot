@@ -28,11 +28,13 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
-[] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown or pdf
-[] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Nodes Matrix with all relevant fields: campaign_id, room descriptions, etc.
+[] 🔴 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
+    [] 🔴 Pass 1 (Generation): Gemini consumes the raw markdown segments and produces an array of NodeDTO objects populated with local data.
+    [] 🔴 Pass 2 (Validation & Linking): The Python ingestion loop parses those objects, commits them to MongoDB, and maps parent_node_id and exit target_node_id strings to guarantee graph integrity.
+    [] 🔴 Pass 3 (Map Compilation Phase): explicitly derive and compile the Adventure Root Blueprint Document inside your static database
 
 ## Seeding Database
-[] 🔴 Test Case [Seed Data]: Assert that the json files 5e repo can be parsed and inserted into database
+[] 🔴 Test Case [Seed Data]: Assert that the core rulebook markdown files in 5e repo can be parsed, cleaned, and inserted into database
     [] 🔴 PHB: Players Handbook 2024
     [] 🔴 DMG: Dungeon Masters Guide 2024
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD bestiary is populated into the Monster collection database
@@ -50,8 +52,6 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [] 🔴 Import Cog - imports characters from D&D Beyond uri
     [] 🔴 Session Cog - handles session management (setup_session,join_session,begin_adventure,end_session)
     [] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?)
-[] 🔴 Core Game Engine Logic
-    [] 🔴 Combat Core - loops through combat initative tracker until no more enemies persist, prompts player action or rule adjudication for for NPC action
 
 ## 🗺️ Spatial Routing Engine (Node Matrix)
 The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.
