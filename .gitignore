@@ -6,6 +6,8 @@ venv/
 raw_pdf/
 markdown_pdf/
 __pycache__
+__pycache__/
+*.pyc
 bestiary/
 spells/
 items/
