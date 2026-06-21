@@ -32,17 +32,6 @@ async def seed_items():
         print(f"CRITICAL: Missing item datasets in {items_dir}. Ensure both 'items-base.json' and 'items.json' are pulled.")
         return
 
-    #  # DEBUG: Check if we are actually getting data
-    # with open(base_file_path, "r", encoding="utf-8") as f:
-    #     debug_data = json.load(f)
-    #     base_items = debug_data.get("baseitem", [])
-    #     print(f"DEBUG: Base file keys: {list(debug_data.keys())}")
-    #     print(f"DEBUG: Items in 'baseitem': {len(base_items)}")
-    #     if base_items:
-    #         print(f"DEBUG: First item name: {base_items[0].get('name')}")
-    #     else:
-    #         print("DEBUG: 'baseitem' list is empty.")
-
     bulk_operations = []
     total_raw_processed = 0
     

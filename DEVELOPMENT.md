@@ -19,7 +19,7 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
     [x] 🟢 Player Registry
     [x] 🟢 Delta
     [x] 🟢 Saved_Delta
-    [] 🔴 Item
+    [x] 🟢 Item 
     [] 🔴 Node
     [] 🔴 Cache
 
@@ -34,20 +34,22 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 [] 🔴 Test Case [Seed Data]: Assert that the json files 5e repo can be parsed and inserted into database
     [] 🔴 PHB: Players Handbook 2024
     [] 🔴 DMG: Dungeon Masters Guide 2024
-    [] 🔴 XGE: Xanathar's Guide to Everything 2024 (Optional)
-    [] 🔴 TCE: Tasha's Cauldron of Everything 2024 (Optional)
-    [] 🔴 VGtM: Volo's Guide to Monsters 2024 (Optional)
-    [] 🔴 MToF: Mordenkainen's Tome of Foes 2024 (Optional)
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD bestiary is populated into the Monster collection database
     [x] 🟢 MM: Monster Manual 2025
     [x] 🟢 VGtM: Volo's Guide to Monsters 2025
     [x] 🟢 MToF: Mordenkainen's Tome of Foes 2025
-[] 🔴 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
+[x] 🔵 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
+    [] 🔴 Refactor seed pipeline to use a dispatcher to handle partnered content (mixed json files)
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
 
 ## 📦 Discord Bot
 [x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
-    [] 🔵 Discord Cogs to compartmentalize @commands, /commands, and event listeners
+[x] 🔵 Discord Cogs to compartmentalize @commands, /commands, and event listeners
+    [] 🔴 Import Cog - imports characters from D&D Beyond uri
+    [] 🔴 Session Cog - handles session management (setup_session,join_session,begin_adventure,end_session)
+    [] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?)
+[] 🔴 Core Game Engine Logic
+    [] 🔴 Combat Core - loops through combat initative tracker until no more enemies persist, prompts player action or rule adjudication for for NPC action
 
 ## 🗺️ Spatial Routing Engine (Node Matrix)
 The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.

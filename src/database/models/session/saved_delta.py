@@ -42,17 +42,6 @@ class SavedSessionDelta(Document):
     # NEW: Persists un-triggered countdown hooks, traps, or status effects across pauses
     scheduled_events: List[ScheduledEvent] = Field(default_factory=list)
 
-    # class Settings:
-    #     name = "saved_session_deltas"
-    #     indexes = [
-    #         # Single-field index for server routing
-    #         "guild_id",
-
-    #         # Compound indexing to optimize fast HEAD resolution queries on campaign loading
-    #         [("session_id", 1), ("is_active_head", -1)],
-    #         [("session_id", 1), ("sequence_number", -1)]
-    #     ]
-
     class Settings:
         name = "saved_session_deltas"
         indexes = [
