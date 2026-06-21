@@ -31,7 +31,7 @@ class NodeDTO(BaseModel):
     interactables: List[Dict[str, Any]] = Field(default_factory=list, description="Custom unique puzzles, locked chest mechanics, or hidden trap rules.")
     npc_profiles: List[Dict[str, Any]] = Field(default_factory=list, description="Named NPCs found in this area, including behavioral goals and dialog roots.")
     
-    quest_registry: List[QuestHook] = Field(default_factory=list, description="Only populated on the CAMPAIGN_ROOT node. Master array tracking all game quests.")
+    # quest_registry: List[QuestHook] = Field(default_factory=list, description="Only populated on the CAMPAIGN_ROOT node. Master array tracking all game quests.")
     story_hooks: List[str] = Field(default_factory=list, description="Extracted localized plot hooks, specific rumors, or quest updates tied to this space.")
     campaign_lore: List[str] = Field(default_factory=list, description="Historical world background elements, secret legends, or local context lore records.")
     
@@ -117,7 +117,6 @@ class NodeDTO(BaseModel):
                 },
                 "interactables": [],
                 "npc_profiles": [],
-                "quest_registry": [],
                 "story_hooks": ["Found clues of Gundren Rockseeker's capture."],
                 "campaign_lore": ["This cave has been utilized by the Cragmaw goblin tribe for the past three seasons."],
                 "llm_contexts": {

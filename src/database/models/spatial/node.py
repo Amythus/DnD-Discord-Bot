@@ -1,6 +1,7 @@
 from enum import Enum
 from beanie import Document, Indexed
 from pydantic import BaseModel, Field
+from pymongo import IndexModel, ASCENDING
 from typing import List, Dict, Any, Optional, Annotated, Literal
 
 # ==========================================
@@ -72,7 +73,7 @@ class NodeMetadata(BaseModel):
     procedural_traversal_allowed: bool = Field(default=True, description="If True, the engine allows players to creatively invent unlisted logical exits.")
     
     # ADDED: Safe tracking for pre-seeded ambient constraints (e.g., mill alert statuses) scanned during short rests
-    parent_alert_flags: Dict[str, bool] = Field(default_factory=dict, description="Pre-seeded event mapping flags used by the core rules middleware to interrupt short rests.")
+    parent_alert_flags: Dict[str, bool] = Field(default_factory=dict, description="Pre-seeded event mapping flags used by the core rulfromes middleware to interrupt short rests.")
     
     room_states: Dict[str, Any] = Field(default_factory=dict, description="Dynamic runtime key-value ledger tracking environmental mutations across sessions.")
     behavior_triggers: List[Dict[str, Any]] = Field(default_factory=list, description="Automated scripted event hooks that evaluate metrics to trigger core engine action payloads.")
@@ -120,7 +121,7 @@ class Node(Document):
     interactables: List[Dict[str, Any]] = Field(default_factory=list, description="Custom unique puzzles, locked chest mechanics, or hidden trap rules.")
     npc_profiles: List[Dict[str, Any]] = Field(default_factory=list, description="Named NPCs found in this area, including behavioral goals and dialog roots.")
     
-    quest_registry: List[QuestHook] = Field(default_factory=list, description="Only populated on the CAMPAIGN_ROOT node. Master array tracking all game quests.")
+    # quest_registry: List[QuestHook] = Field(default_factory=list, description="Only populated on the CAMPAIGN_ROOT node. Master array tracking all game quests.")
     story_hooks: List[str] = Field(default_factory=list, description="Extracted localized plot hooks, specific rumors, or quest updates tied to this space.")
     campaign_lore: List[str] = Field(default_factory=list, description="Historical world background elements, secret legends, or local context lore records.")
     
@@ -128,12 +129,8 @@ class Node(Document):
     
     class Settings:
         name = "world_nodes"
-        # FIXED: Enforced unique sequence requirements to prevent seed script corruption
         indexes = [
-            {
-                "fields": [("adventure_id", 1), ("node_id", 1)],
-                "unique": True
-            }
+            IndexModel([("adventure_id", ASCENDING), ("node_id", ASCENDING)], unique=True)
         ]
 
     class Config:
@@ -214,7 +211,6 @@ class Node(Document):
                 },
                 "interactables": [],
                 "npc_profiles": [],
-                "quest_registry": [],
                 "story_hooks": ["Found clues of Gundren Rockseeker's capture."],
                 "campaign_lore": ["This cave has been utilized by the Cragmaw goblin tribe for the past three seasons."],
                 "llm_contexts": {

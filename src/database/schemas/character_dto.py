@@ -21,7 +21,7 @@ class CharacterStatsDTO(BaseModel):
     charisma: int
     model_config = {"extra": "forbid"}
     
-class DDBParsedCharacter(BaseModel):
+class DDBParsedCharacterDTO(BaseModel):
     """
     Data Transfer Object for parsing D&D Beyond character sheets via Gemini.
     Strictly forbids extra fields to ensure LLM structured output determinism.

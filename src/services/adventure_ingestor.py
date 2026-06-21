@@ -5,22 +5,14 @@ from pymongo import UpdateOne
 from google import genai
 from google.genai import types
 
-from config.settings import AppSettings  # Case-insensitive safe environment loader
 from database.connection import init_db  # Beanie async MongoDB initializer
 from database.models.static.node import Node  # Original Beanie Document model
 from database.seed.adventure_dto import AdventureMatrixResponse 
+from services.gemini_client import gemini_service
 
 async def ingest_adventure(file_name: str = "adventure.md"):
-    # 1. Initialize Configuration and Clients
-    settings = AppSettings()
-    api_key = getattr(settings, "gemini_api_key", os.getenv("GEMINI_API_KEY"))
-    
-    if not api_key:
-        print("❌ Error: GEMINI_API_KEY could not be located in environment settings.")
-        return
-
-    client = genai.Client(api_key=api_key)
-    
+    # 1. Initialize Clients via Shared Service
+    client = gemini_service.get_client()
     # 2. Establish Relative Path Discovery
     script_dir = Path(__file__).parent
     target_md_path = script_dir / "adventures" / file_name
@@ -35,22 +27,19 @@ async def ingest_adventure(file_name: str = "adventure.md"):
     # 3. Compile System Prompt Instructions
     # Pass text to Jinja to compile the specialized input prompt
     template_engine = TemplateService()
-    compiled_prompt = template_engine.render(
-        "adventure_prompt.jinja", 
-        adventure_text=adventure_text
-    )
+    compiled_prompt = template_engine.render("adventure_ingestion_prompt.jinja", adventure_text=adventure_text)
 
     print("🤖 Dispatching parsing request to Gemini API (Locked Structural Schema Mode)...")
     
     try:
         response = client.models.generate_content(
             model='gemini-3.1-flash-lite', 
-            contents=f"Analyze and parse the following adventure text into a flat structural node matrix:\n\n{adventure_text}",
+            contents=compiled_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                temperature=0.1,  # Low temperature forces deterministic data extraction
+                temperature=0.1,
                 response_mime_type="application/json",
-                response_schema=AdventureMatrixResponse,
+                response_json_schema=AdventureMatrixResponse,
             ),
         )
     except Exception as e:

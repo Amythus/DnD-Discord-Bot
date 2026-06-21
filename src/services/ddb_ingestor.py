@@ -4,7 +4,7 @@ import httpx
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
 from database.models.identity.character import Character
-from database.schemas.character_dto import DDBParsedCharacter
+from database.schemas.character_dto import DDBParsedCharacterDTO
 from database.models.identity.registry import PlayerRegistry 
 
 class DDBIngestorService:
@@ -33,7 +33,7 @@ class DDBIngestorService:
 
         # 2. Instantiate the Template Engine and render the Jinja prompt
         template_engine = TemplateService()
-        prompt_text = template_engine.render_prompt("ddb_ingestion_prompt.jinja", data=raw_ddb_data)
+        compiled_prompt = template_engine.render_prompt("ddb_ingestion_prompt.jinja", data=raw_ddb_data)
         
         # 3. Request the centralized client
         client = gemini_service.get_client() 
@@ -43,17 +43,17 @@ class DDBIngestorService:
         # 4. Generate structured output
         response = client.models.generate_content(
             model='gemini-3.1-flash-lite',
-            contents=prompt_text,
+            contents=compiled_prompt,
             config={
                 "response_mime_type": "application/json",
-                "response_json_schema": DDBParsedCharacter.model_json_schema()
+                "response_json_schema": DDBParsedCharacterDTO.model_json_schema()
             }
         )
 
         print("✅ Successfully parsed character data into structured JSON.")
         
         # 5. Load the validated JSON
-        parsed_dto = DDBParsedCharacter.model_validate_json(response.text)
+        parsed_dto = DDBParsedCharacterDTO.model_validate_json(response.text)
         
         # Registry Handshake with character-player registry
         registry = await PlayerRegistry.find_one(

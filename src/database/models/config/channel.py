@@ -28,17 +28,6 @@ class ChannelConfig(Document):
     # A toggle to pause the bot from reading this channel without ending the session
     is_paused: bool = Field(default=False)
 
-    # class Settings:
-    #     name = "config_channels" # The name of the MongoDB collection
-
-    #     indexes = [
-    #         {
-    #             "key": [("channel_id", 1)],
-    #             "unique": True
-    #         },
-    #         "guild_id"
-    #     ]
-
     class Settings:
         name = "config_channels" 
         
