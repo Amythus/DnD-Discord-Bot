@@ -46,6 +46,7 @@ class DDBIngestorService:
             contents=prompt_text,
             config={
                 "response_mime_type": "application/json",
+                "response_json_schema": DDBParsedCharacter.model_json_schema()
             }
         )
 

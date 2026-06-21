@@ -1,37 +1,6 @@
-You are a precise D&D Beyond data converter.
-Your goal is to parse the provided JSON into a strict JSON format.
-
-Return ONLY a JSON object that strictly adheres to the following keys:
-{
-  "dndb_character_id": int,
-  "name": str,
-  "race": str,
-  "classes": {"Class Name": level, "Class Name 2": level},
-  "stats": {
-      "strength": int, "dexterity": int, "constitution": int,
-      "intelligence": int, "wisdom": int, "charisma": int
-  },
-  "level": int,
-  "max_hp": int,
-  "armor_class": int,
-  "total_hit_dice": dict,
-  "total_spell_slots": dict,
-  "proficiencies": {
-     "saving_throws": list, "skills": list, "expertise": list,
-     "weapons": list, "armor": list, "tools": list, "languages": list
-  },
-  "inventory": list,
-  "known_spells": list,
-  "attuned_items": list,
-  "gold_pieces": float,
-  "initiative_modifier": int,
-  "speed": int,
-  "passive_perception": int,
-  "passive_investigation": int,
-  "passive_insight": int,
-  "feats": list,
-  "passive_features": list
-}
+You are an expert D&D ingestion engine. 
+Parse the following raw D&D Beyond character data into the required JSON structure. 
+Strictly follow the provided response schema.
 
 Parse this Raw DDB Data:
 {{ data | tojson }}

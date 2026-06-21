@@ -1,5 +1,5 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class CharacterProficienciesDTO(BaseModel):
     """Schema mirroring CharacterProficiencies for structured ingestion."""
@@ -71,3 +71,45 @@ class DDBParsedCharacter(BaseModel):
 
     gold_pieces: float = Field(0.0)
 
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
+        json_schema_extra = {
+            "example": {
+                "character_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Eldrin",
+                "race": "High Elf",
+                "classes": {"rogue": 3, "fighter": 2},
+                "level": 5,
+                "max_hp": 38,
+                "armor_class": 16,
+                "initiative_modifier": 4,
+                "speed": 30,
+                "passive_perception": 14,
+                "passive_investigation": 12,
+                "passive_insight": 11,
+                "stats": {
+                    "strength": 10, "dexterity": 18, "constitution": 14,
+                    "intelligence": 12, "wisdom": 12, "charisma": 10
+                },
+                "proficiencies": {
+                    "saving_throws": ["dex", "int"],
+                    "skills": ["athletics", "acrobatic", "stealth", "perception"],
+                    "expertise": ["stealth"],
+                    "weapons": ["simple-weapons", "martial-weapons"],
+                    "armor": ["light-armor", "medium-armor"],
+                    "tools": ["thieves-tools"],
+                    "languages": ["common", "elvish", "thieves-cant"]
+                },
+                "feats": ["alert"],
+                "passive_features": ["cunning-action", "action-surge", "second-wind"],
+                "total_spell_slots": {},
+                "total_hit_dice": {"d8": 3, "d10": 2},
+                "known_spells": [],
+                "inventory_slugs": ["rapier", "stud-leather", "health-potion"],
+                "attuned_items": [],
+                "gold_pieces": 250.0,
+                "last_synced_at": "2026-06-19T21:30:00Z"
+            }
+        }
+    )
