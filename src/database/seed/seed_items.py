@@ -32,6 +32,17 @@ async def seed_items():
         print(f"CRITICAL: Missing item datasets in {items_dir}. Ensure both 'items-base.json' and 'items.json' are pulled.")
         return
 
+    #  # DEBUG: Check if we are actually getting data
+    # with open(base_file_path, "r", encoding="utf-8") as f:
+    #     debug_data = json.load(f)
+    #     base_items = debug_data.get("baseitem", [])
+    #     print(f"DEBUG: Base file keys: {list(debug_data.keys())}")
+    #     print(f"DEBUG: Items in 'baseitem': {len(base_items)}")
+    #     if base_items:
+    #         print(f"DEBUG: First item name: {base_items[0].get('name')}")
+    #     else:
+    #         print("DEBUG: 'baseitem' list is empty.")
+
     bulk_operations = []
     total_raw_processed = 0
     
@@ -50,7 +61,7 @@ async def seed_items():
         return
 
     # 5e.tools structure can use "baseitem" or "item" as its root key array
-    base_item_list = base_data.get("baseitem", []) or base_data.get("item", [])
+    base_item_list = base_data.get("baseitem", [])
     print(f" -> Found {len(base_item_list)} baseline template elements.")
     
     for raw_base in base_item_list:
@@ -63,9 +74,6 @@ async def seed_items():
         if not name:
             continue
             
-        # 5e.tools references base items using a lowercase pipe syntax: "name|source"
-        cache_key = f"{name.lower()}|{source}"
-        
         try:
             # Enforce is_magic is explicitly False for foundational records
             raw_base["is_magic"] = False
@@ -74,6 +82,7 @@ async def seed_items():
             base_dict = validated_base.model_dump(by_alias=True, exclude={"id"})
             
             # Populate our optimization dictionary for Pass 2 hydration
+            cache_key = f"{name.lower()}|{source}"
             base_items_cache[cache_key] = base_dict
             
             # Queue the upsert operation
@@ -84,9 +93,11 @@ async def seed_items():
             )
             bulk_operations.append(op)
             total_raw_processed += 1
-            
+
         except Exception as ve:
-            print(f"   [Skipping Template Profile] '{name}' inside {base_file_path.name}: {ve}")
+            import traceback
+            print(f"   [FATAL Error] Item '{name}' failed:")
+            traceback.print_exc()
             continue
 
     print(f" -> Pass 1 Complete. Cached {len(base_items_cache)} baseline templates in runtime memory.")
@@ -110,7 +121,16 @@ async def seed_items():
             continue
             
         name = raw_magic.get("name", "Unknown")
+
+        # Data Normalization
+        if "text" in raw_magic:
+            val = raw_magic.pop("text")
+            raw_magic["text_note"] = " ".join(val) if isinstance(val, list) else str(val)
         
+        # 5e.tools uses 'srd52' but we mapped it to 'srd'
+        if "srd52" in raw_magic:
+            raw_magic["srd"] = raw_magic.pop("srd52")
+
         try:
             # Check if this item inherits properties from a template item (e.g., "longsword|phb")
             base_item_ref = raw_magic.get("baseitem")

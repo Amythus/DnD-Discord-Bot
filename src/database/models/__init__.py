@@ -2,7 +2,7 @@
 from .config.channel import ChannelConfig
 from .static.monster import Monster
 from .static.spell import Spell
-# from .static.item import Item
+from .static.item import Item
 # from .spatial.node import MapNode
 # from .session.session import CampaignSession
 from .session.delta import SessionDelta
@@ -15,7 +15,7 @@ __all_models__ = [
     ChannelConfig,
     Monster,
     Spell,
-    # Item,
+    Item,
     # MapNode,
     # CampaignSession,
     SessionDelta,
