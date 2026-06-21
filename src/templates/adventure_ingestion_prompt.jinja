@@ -1,14 +1,8 @@
-You are an expert Virtual Dungeon Master compiler. 
-Analyze the raw Markdown adventure text provided below. 
+You are an expert dungeon master data-architect. Your task is to analyze the following raw markdown adventure section and translate its structural spaces, rooms, connections, and POIs into a series of flat layout blocks.
 
-Break down the adventure into a flattened, interconnected node matrix (Adjacency List).
-For every point of interest or room:
-- Construct a deterministic snake_case `node_id`.
-- Map out all directions, open/locked paths, and doors in the exits array.
-- Extract any default creatures, loot tables, or narrative lore strings.
+Review the original text carefully to capture environmental notes, descriptions, and exits accurately.
 
-Target Campaign Context:
-- Campaign Source: 5e.tools Markdown Export
-
-[RAW ADVENTURE MODULE TEXT]
+---
+RAW ADVENTURE TEXT START:
 {{ adventure_text }}
+---

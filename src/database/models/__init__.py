@@ -3,7 +3,7 @@ from .config.channel import ChannelConfig
 from .static.monster import Monster
 from .static.spell import Spell
 from .static.item import Item
-from .spatial.node import Node
+from .spatial.node import GameNode
 # from .session.session import CampaignSession
 from .session.delta import SessionDelta
 from .identity.character import Character
@@ -16,7 +16,7 @@ __all_models__ = [
     Monster,
     Spell,
     Item,
-    Node,
+    GameNode,
     # CampaignSession,
     SessionDelta,
     Character,

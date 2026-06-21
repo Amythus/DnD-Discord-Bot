@@ -104,7 +104,7 @@ class QuestHook(BaseModel):
 # 3. THE CORE UNIVERSAL BEANIE DOCUMENT
 # ==========================================
 
-class Node(Document):
+class GameNode(Document):
     adventure_id: Annotated[str, Indexed()] = Field(description="The structural grouping ID anchoring this node to a specific campaign book.")
     node_id: str = Field(description="The explicit localized identification string for this specific node block, structured uniformly in snake_case.")
     parent_node_id: Optional[str] = Field(default=None, description="Relational pointer up to a broader macro-node, regional layout, or Campaign Root anchor.")

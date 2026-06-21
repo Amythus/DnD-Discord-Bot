@@ -7,9 +7,9 @@ from pathlib import Path
 from pymongo import UpdateOne
 
 from database.connection import init_db  # Beanie async MongoDB initializer
-from database.models.static.node import Node  # Original Beanie Document model
+from database.models.static.node import GameNode  # Original Beanie Document model
 from database.models.schema.node_dto import NodeDTO  # Pydantic DTO for
-from database.seed.adventure_dto import AdventureMatrixResponse 
+from database.seed.adventure_dto import AdventureGenerationPayload
 
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
@@ -25,6 +25,10 @@ async def ingest_adventure(file_name: str = "adventure.md"):
     Pass 2 iterates through the array one node at a time to validate graph integrity.
     Pass 3 compiles the final master campaign blueprint template.
     """    
+
+    # ===================================================
+    # PASS 1: Sequential Registration
+    # ===================================================
 
     # 1. Initialize Clients via Shared Service
     client = gemini_service.get_client()
@@ -45,36 +49,19 @@ async def ingest_adventure(file_name: str = "adventure.md"):
     compiled_prompt = template_engine.render("adventure_ingestion_prompt.jinja", adventure_text=adventure_text)
 
     print("🤖 Dispatching parsing request to Gemini API (Locked Structural Schema Mode)...")
-    
-    try:
-        response = client.models.generate_content(
-            model='gemini-3.1-flash-lite', 
+
+    generation_response = await gemini_service.generate_structured_output(
+            model='gemini-3.1-flash-lite',
             contents=compiled_prompt,
-            config=types.GenerateContentConfig(
-                # system_instruction=system_instruction,
-                # temperature=0.1,
-                response_mime_type="application/json",
-                response_json_schema=NodeDTO.model_json_schema(),
-            ),
+            response_schema=AdventureGenerationPayload
         )
-    except Exception as e:
-        print(f"❌ Gemini Engine Ingestion Failure: {e}")
-        return
 
-    # Extract the type-safe array container populated by the LLM
-    generated_payload: AdventureGenerationPayload = raw_response
-    node_dto_array: List[NodeDTO] = generated_payload.nodes
+    adventure_id = generation_response.adventure_id
+    node_dto_array: List[NodeDTO] = generation_response.nodes
+
     print(f"✅ Pass 1 Complete: Extracted {len(node_dto_array)} flat Node DTOs.")
 
-    # Extract the type-safe array container populated by the LLM
-    generated_payload: AdventureGenerationPayload = raw_response
-    node_dto_array: List[NodeDTO] = generated_payload.nodes
-    print(f"✅ Pass 1 Complete: Extracted {len(node_dto_array)} flat Node DTOs.")
-
-    # ===================================================
-    # PASS 2: VALIDATION & LINKING (One-at-a-Time Loop)
-    # ===================================================
-    print("🔗 Commencing Pass 2: Iterating nodes one-by-one to commit and map graph...")
+    print("🔗 Commencing iteration and inserting nodes into the database...")
     
     processed_node_ids = set()
     
@@ -108,20 +95,91 @@ async def ingest_adventure(file_name: str = "adventure.md"):
             print(f"❌ Structural Failure on Node ID '{node_dto.node_id}': {str(e)}")
             continue
 
-    # Graph verification stage: Loop over exits to ensure pointers targets exist
-    print("🛡️ Running topological check across navigation exit thresholds...")
-    # (Your loop logic that checks target_node_id against processed_node_ids goes here)
+    # ===================================================
+    # PASS 2: VALIDATION & LINKING (One node at a time)
+    # ===================================================
+
+    print("\n🛡️ Running Pass 2: Topological check across navigation exit thresholds...")
+    broken_links_detected = 0
+    starting_node_id = None
+
+    for node_dto in node_dto_array:
+        # Only validate nodes that successfully passed database serialization in Pass 1
+        if node_dto.node_id not in processed_node_ids:
+            continue
+            
+        # Track the starting node for Pass 3 compilation rules (e.g. your CAMPAIGN_ROOT)
+        if node_dto.node_type == "CAMPAIGN_ROOT":
+            starting_node_id = node_dto.node_id
+
+        # 1. Validate Parent Adjacency Pointer
+        if node_dto.parent_node_id and node_dto.parent_node_id not in processed_node_ids:
+            print(f"  ⚠️ Link Warning: Node '{node_dto.node_id}' references an orphaned parent_node_id: '{node_dto.parent_node_id}'")
+            broken_links_detected += 1
+
+        # 2. Validate Navigation Exit Grid Targets
+        # Assumes node_dto.navigation contains a list or dictionary of exits/links
+        # Adjust the attribute extraction below to match your precise NavigationGrid Pydantic structure
+        if hasattr(node_dto, "navigation") and node_dto.navigation:
+            # Assuming your model has a structured array of exit objects: e.g., node_dto.navigation.exits
+            exits = getattr(node_dto.navigation, "exits", [])
+            for game_exit in exits:
+                target = getattr(game_exit, "target_node_id", None)
+                if target and target not in processed_node_ids:
+                    print(f"  ❌ Graph Break: Node '{node_dto.node_id}' points to a non-existent exit target: '{target}'")
+                    broken_links_detected += 1
+
+    print(f"✅ Pass 2 Complete. Validated structural integrity. Broken references found: {broken_links_detected}")
     
-    # ============================================
+    # ===================================================
     # PASS 3: MAP COMPILATION (Blueprint Assembly)
-    # ============================================
-    print("🏗️ Commencing Pass 3: Deriving macro blueprint document entries...")
-    # (Your aggregation logic tracking starting_node_id and default state parameters)
+    # ===================================================
     
+    print("\n🏗️ Commencing Pass 3: Compiling master campaign blueprint template...")
+    
+    # Ensure a legitimate starting node exists from Pass 2 data checking
+    if not starting_node_id:
+        starting_node_id = list(processed_node_ids)[0] if processed_node_ids else "start_node"
+        print(f"⚠️ Warning: No CAMPAIGN_ROOT type detected. Defaulting entry room to: {starting_node_id}")
+
+    try:
+        # Check if a blueprint for this module already exists to keep lookups idempotent
+        existing_blueprint = await AdventureRootBlueprint.find_one({
+            "adventure_id": adventure_id
+        })
+        
+        # Hydrate the master blueprint directly using parameters captured from generation_response
+        blueprint_data = {
+            "adventure_id": adventure_id,
+            "module_name": generation_response.module_name,
+            "starting_node_id": starting_node_id,
+            "initiator_prompt": generation_response.initiator_prompt,
+            "default_npc_dispositions": generation_response.default_npc_dispositions,
+            "initial_story_flags": generation_response.initial_story_flags,
+            "master_quest_registry": generation_response.master_quest_registry
+        }
+        
+        if existing_blueprint:
+            print(f"🔄 Syncing blueprint updates onto existing token tracking record...")
+            live_blueprint = AdventureRootBlueprint(**blueprint_data)
+            live_blueprint.id = existing_blueprint.id
+            await live_blueprint.replace()
+        else:
+            print(f"💾 Saving new atomic campaign master template blueprint to database...")
+            live_blueprint = AdventureRootBlueprint(**blueprint_data)
+            await live_blueprint.save()
+            
+        print(f"🚀 Master Campaign Ready: '{generation_response.module_name}' is fully validated.")
+        
+    except Exception as e:
+        print(f"❌ Critical Failure Compiling Pass 3 Campaign Template: {str(e)}")
+        return {"status": "FAILED_BLUEPRINT_COMPILATION", "error": str(e)}
+
     return {
         "adventure_id": adventure_id,
         "status": "SUCCESS",
-        "nodes_ingested_count": len(processed_node_ids)
+        "nodes_ingested_count": len(processed_node_ids),
+        "starting_node_id": starting_node_id
     }
 
 if __name__ == "__main__":

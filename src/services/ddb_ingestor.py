@@ -44,7 +44,7 @@ class DDBIngestorService:
         parsed_dto = await gemini_service.generate_structured_output(
             model='gemini-3.1-flash-lite',
             contents=compiled_prompt,
-            response_schema=DDBParsedCharacterDTO # Pass the model type directly
+            response_schema=DDBParsedCharacterDTO 
         )
 
         # Registry Handshake with character-player registry

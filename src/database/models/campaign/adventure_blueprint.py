@@ -28,6 +28,6 @@ class AdventureRootBlueprint(BaseModel):
         description="The complete baseline array of campaign tasks, tracking structural prerequisites and rewards."
     )
 
-    # model_config = ConfigDict(
-    #     extra='forbid'
-    # )
+    model_config = ConfigDict(
+        extra='forbid'
+    )

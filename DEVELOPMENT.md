@@ -30,7 +30,7 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
 [] 🔴 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
     [] 🔴 Pass 1 (Generation): Gemini consumes the raw markdown segments and produces an array of NodeDTO objects populated with local data.
-    [] 🔴 Pass 2 (Validation & Linking): The Python ingestion loop parses those objects, commits them to MongoDB, and maps parent_node_id and exit target_node_id strings to guarantee graph integrity.
+    [] 🔴 Pass 2 (Validation): The Python ingestion loop parses those objects, commits them to MongoDB, and maps parent_node_id and exit target_node_id strings to guarantee graph integrity.
     [] 🔴 Pass 3 (Map Compilation Phase): explicitly derive and compile the Adventure Root Blueprint Document inside static database
 
 ## Seeding Database
