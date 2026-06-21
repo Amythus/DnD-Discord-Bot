@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 from database.models.spatial.node import (
     NavigationGrid, 
@@ -37,7 +37,9 @@ class NodeDTO(BaseModel):
     
     llm_contexts: Dict[str, str] = Field(default_factory=dict, description="Holds a 'baseline_narration' key containing the unaltered descriptive background prose.")
 
-    class Config:
+    model_config = ConfigDict(
+        extra='forbid',
+        populate_by_name=True,
         json_schema_extra = {
             "example": {
                 "adventure_id": "lost_mine_of_phandelver",
@@ -123,3 +125,4 @@ class NodeDTO(BaseModel):
                 }
             }
         }
+    )
