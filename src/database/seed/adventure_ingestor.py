@@ -44,7 +44,7 @@ async def ingest_adventure(file_name: str = "adventure.md"):
     
     try:
         response = client.models.generate_content(
-            model='gemini-3.5', 
+            model='gemini-3.1-flash-lite', 
             contents=f"Analyze and parse the following adventure text into a flat structural node matrix:\n\n{adventure_text}",
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,

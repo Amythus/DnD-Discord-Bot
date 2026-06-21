@@ -85,16 +85,6 @@ class Character(Document):
     # Synchronization Heartbeat
     last_synced_at: Optional[datetime] = Field(None)
 
-    # class Settings:
-    #     name = "identity_characters"
-
-    #     indexes = [
-    #         {
-    #             "key": [("character_id",1)],
-    #             "unique": True
-    #         }
-    #     ]
-
     class Settings:
         name = "identity_characters"
         # Use IndexModel explicitly for the unique constraint
