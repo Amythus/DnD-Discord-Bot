@@ -1,0 +1,14 @@
+You are an expert Virtual Dungeon Master compiler. 
+Analyze the raw Markdown adventure text provided below. 
+
+Break down the adventure into a flattened, interconnected node matrix (Adjacency List).
+For every point of interest or room:
+- Construct a deterministic snake_case `node_id`.
+- Map out all directions, open/locked paths, and doors in the exits array.
+- Extract any default creatures, loot tables, or narrative lore strings.
+
+Target Campaign Context:
+- Campaign Source: 5e.tools Markdown Export
+
+[RAW ADVENTURE MODULE TEXT]
+{{ adventure_text }}
