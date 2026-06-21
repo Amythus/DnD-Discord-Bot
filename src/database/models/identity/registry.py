@@ -1,7 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, Any, Union
 from uuid import UUID
-from beanie import Document, Indexed
+from beanie import Document, Indexed, PydanticObjectId, Link
 from pydantic import HttpUrl, Field
+from database.models.identity.character import Character
 
 class PlayerRegistry(Document):
     """
@@ -15,11 +16,12 @@ class PlayerRegistry(Document):
     
     # The unique UUID of the character currently loaded/selected by the player.
     # References the `character_id` field inside the identity_characters collection.
-    active_character_id: Optional[UUID] = None
+    # Allow both Link and PydanticObjectId to satisfy validation
+    active_character_id: Optional[PydanticObjectId] = None
     
     # D&D Beyond Sync integration mappings
     # Stores the profile/character tracking URL for downstream API scrapers or proxies
-    dndb_uri: Optional[HttpUrl] = None
+    dndb_uri: Optional[str] = None
     # Alternatively stored as a numerical token ID string extracted from the D&DB payload
     dndb_character_id: Optional[str] = None
     

@@ -10,7 +10,7 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 [x] 🟢 Test Case [Database Initialization]: Assert that the database connection is established and the collections are created successfully.
 [x] 🟢 Test Case [Discord Bot Initialization]: Bot connects to discord and responds to a ping command.
 
-## Database Schema
+## Database Moddels/Schema
 [] 🔵 Test Case [Database Schema]: Assert that the database schema is valid and can be created without errors
     [x] 🟢 Monster
     [x] 🟢 Character
@@ -27,6 +27,7 @@ Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
+[x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
 [] 🔴 Test Case [Campaign Ingestion]: Assert that the campaign can be ingested from 5e tools markdown or pdf
 [] 🔴 Test Case [Campaign Ingestion]: Assert that the ingested campaign markdown file populates the Nodes Matrix with all relevant fields: campaign_id, room descriptions, etc.
 
@@ -41,7 +42,7 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 [x] 🔵 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
     [] 🔴 Refactor seed pipeline to use a dispatcher to handle partnered content (mixed json files)
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
-[] 🔵 Refactor with Pydantic Data Transfer Objects (DTOs)
+
 
 ## 📦 Discord Bot
 [x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with

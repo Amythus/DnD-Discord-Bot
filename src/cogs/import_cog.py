@@ -15,15 +15,17 @@ class ImportCog(commands.Cog):
         
         try:
             # 2. Pass to the parsing engine, injecting the Discord Owner ID to prevent state drift
-            character = await DDBIngestorService.import_character(
+            character, is_new = await DDBIngestorService.import_character(
                 dndb_url=character_link, 
                 discord_user_id=interaction.user.id
             )
             
-            # 3. Successful Upsert Formatting
+            # 3. Successful Upsert Formatting            
+            action_text = "registered to" if is_new else "updated and synced with"
+
             embed = discord.Embed(
                 title="Character Synced Successfully!",
-                description=f"**{character.name}** (Level {character.level} {character.race})\nhas been securely registered to your discord id.",
+                description=f"**{character.name}** (Level {character.level} {character.race})\nhas been {action_text} your discord id.",
                 color=discord.Color.green()
             )
             

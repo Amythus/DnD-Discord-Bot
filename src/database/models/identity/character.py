@@ -41,7 +41,7 @@ class Character(Document):
     Updated exclusively during mid-week level-ups or out-of-session updates.
     """
     # Relational Identifier
-    character_id: UUID = Field(default_factory=uuid4)
+    # character_id: UUID = Field(default_factory=uuid4)
     
     # Core Identity
     name: str
@@ -88,9 +88,9 @@ class Character(Document):
     class Settings:
         name = "identity_characters"
         # Use IndexModel explicitly for the unique constraint
-        indexes = [
-            IndexModel([("character_id", ASCENDING)], unique=True)
-        ]
+        # indexes = [
+        #     IndexModel([("character_id", ASCENDING)], unique=True)
+        # ]
 
 
     class Config:
