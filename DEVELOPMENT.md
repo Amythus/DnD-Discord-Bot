@@ -41,6 +41,7 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 [x] 🔵 Test Case [Seed Data]: Assert that base DnD items are populated into the Item collection database
     [] 🔴 Refactor seed pipeline to use a dispatcher to handle partnered content (mixed json files)
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
+[] 🔵 Refactor with Pydantic Data Transfer Objects (DTOs)
 
 ## 📦 Discord Bot
 [x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with

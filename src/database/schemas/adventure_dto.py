@@ -1,45 +1,62 @@
+from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
-from database.models.static.node import (
-    ExitVector, EnvironmentProfile, SensoryProfile, 
-    NodeMetadata, EncounterReference, LootTable, QuestHook
-)
 
-# Forbid extra properties globally across all sub-models for the Developer API
-ExitVector.model_config["extra"] = "forbid"
-EnvironmentProfile.model_config["extra"] = "forbid"
-SensoryProfile.model_config["extra"] = "forbid"
-NodeMetadata.model_config["extra"] = "forbid"
-EncounterReference.model_config["extra"] = "forbid"
-LootTable.model_config["extra"] = "forbid"
-QuestHook.model_config["extra"] = "forbid"
+class NodeEncounterDTO(BaseModel):
+    """Strict schema for pre-seeding monsters inside a room."""
+    monster_name: str = Field(..., description="Name of the monster or NPC matching the bestiary database.")
+    quantity: int = Field(..., description="Number of these specific entities present in the node.")
+    
+    model_config = {"extra": "forbid"}
 
 class NodeDTO(BaseModel):
-    """Pure Pydantic twin of Node for schema-locked Gemini execution."""
+    """
+    A single, flat location node extracted from the adventure markdown.
+    Designed for immediate upsert into the Node Matrix Adjacency List.
+    """
+    node_id: str = Field(..., description="Unique snake_case identifier for the node, e.g., 'cragmaw_cave_01'.")
+    name: str = Field(..., description="The narrative name of the room or point of interest.")
+    description: str = Field(..., description="The static read-aloud or narrative baseline description of the area.")
+    
+    # ─── Spatial Pointers (Adjacency List) ───
+    connected_node_ids: List[str] = Field(
+        ..., 
+        description="List of node_ids that a player can physically move to from this location."
+    )
+    
+    # ─── State & Environment Engine ───
+    parent_alert_flags: Dict[str, bool] = Field(
+        default_factory=dict, 
+        description="Pre-seeded static threshold flags that dictate map safety, e.g., {'mill_on_alert': true}."
+    )
+    
+    # ─── Interactions ───
+    encounters: Optional[List[NodeEncounterDTO]] = Field(
+        default=None, 
+        description="List of monsters natively stationed in this room."
+    )
+    loot: Optional[List[str]] = Field(
+        default=None, 
+        description="List of item names, artifacts, or gold amounts found hidden or in plain sight."
+    )
+    traps_or_hazards: Optional[List[str]] = Field(
+        default=None,
+        description="Descriptions of environmental dangers, DCs, or traps present in the node."
+    )
+    
     model_config = {"extra": "forbid"}
 
-    node_id: str = Field(description="Deterministic snake_case ID. Example: 'cragmaw_hideout_area_1'.")
-    parent_node_id: Optional[str] = Field(default=None, description="Relational pointer up to a macro-node/region.")
-    node_type: str = Field(description="Must evaluate exactly to one: [CAMPAIGN_ROOT, CITY_OVERWORLD, REGIONAL_DISTRICT, BUILDING_POI, INTERIOR_ROOM].")
-    title: str = Field(description="User-facing display name shown in Discord embeddings.")
+class AdventureDTO(BaseModel):
+    """
+    Root model passed to `gemini_service` for structured output extraction.
+    Forces Gemini to return the entire adventure module as a flat array of nodes.
+    """
+    module_id: str = Field(..., description="The global tracking ID of the adventure module, e.g., 'lmop'.")
+    module_name: str = Field(..., description="The readable title of the adventure.")
     
-    navigation: Any = Field(description="The map layer layout containing verified exit vectors.")
-    environment: EnvironmentProfile = Field(description="Physical rule profiles (lighting, safety bounds).")
-    sensory_profile: SensoryProfile = Field(description="Atmorphic details fed to the narrator.")
-    node_metadata: NodeMetadata = Field(description="Intelligence metrics housing sandbox tags, room states, and triggers.")
+    # ─── Flat Document Pipeline ───
+    nodes: List[NodeDTO] = Field(
+        ..., 
+        description="The completely flattened array of all rooms, locations, and points of interest."
+    )
     
-    encounters: List[EncounterReference] = Field(default_factory=list)
-    treasure: LootTable = Field(default_factory=LootTable)
-    interactables: List[Dict[str, Any]] = Field(default_factory=list)
-    npc_profiles: List[Dict[str, Any]] = Field(default_factory=list)
-    story_hooks: List[str] = Field(default_factory=list)
-    campaign_lore: List[str] = Field(default_factory=list)
-    llm_contexts: Dict[str, str] = Field(description="Must include a 'baseline_narration' key containing verbatim descriptions.")
-
-class AdventureMatrixResponse(BaseModel):
-    """The root response object passed directly as Gemini's response_schema."""
     model_config = {"extra": "forbid"}
-    
-    adventure_id: str = Field(description="The unique global snake_case string for the entire book. Example: 'lost_mine_of_phandelver'.")
-    quest_registry: List[QuestHook] = Field(default_factory=list, description="Master array tracking all overarching game quests found in this chapter/adventure.")
-    nodes: List[NodeDTO] = Field(description="The flat matrix graph of all extracted locations within the text.")

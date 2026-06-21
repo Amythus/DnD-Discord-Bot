@@ -6,9 +6,9 @@ from google import genai
 from google.genai import types
 
 from config.settings import AppSettings  # Case-insensitive safe environment loader
-from database.connection import init_db  # Your Beanie async MongoDB initializer
-from database.models.static.node import Node  # Your original Beanie Document model
-from database.seed.adventure_dto import AdventureMatrixResponse  # The schema models from Step 1
+from database.connection import init_db  # Beanie async MongoDB initializer
+from database.models.static.node import Node  # Original Beanie Document model
+from database.seed.adventure_dto import AdventureMatrixResponse 
 
 async def ingest_adventure(file_name: str = "adventure.md"):
     # 1. Initialize Configuration and Clients
