@@ -25,7 +25,6 @@ Progression follows a Red 🔴 -> Green 🟢 -> Refactor 🔵 Development paradi
 
 ## Ingestion Engine
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
-
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
 [x] 🟢 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
@@ -46,7 +45,6 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [ ] 🔴 Refactor seed pipeline to use a dispatcher to handle partnered content (mixed json files)
 [x] 🟢 Test Case [Seed Data]: Assert that base DnD spells are populated into the Spell collection database
 
-
 ## 📦 Discord Bot
 [x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
 [x] 🔵 Discord Cogs to compartmentalize @commands, /commands, and event listeners
@@ -66,6 +64,8 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [ ] 🔴 [meta_question] is dispatched to the meta question model
     [ ] 🔴 [OOC] is out of context or typos and is ignored by the bot and discarded
 [ ] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?) - responds to dispatched messages from the chat parser cog 
+
+## Game Engine/Pipeline
 
 ## 🔒 Concurrency Lock Manager
 [ ] 🔴 The state protection matrix preventing multi-event state corruption at the individual guild_id boundary.
