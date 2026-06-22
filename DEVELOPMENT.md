@@ -20,7 +20,7 @@ Progression follows a Red 🔴 -> Green 🟢 -> Refactor 🔵 Development paradi
     [x] 🟢 Delta
     [x] 🟢 Saved_Delta
     [x] 🟢 Item 
-    [x] 🔴 Node
+    [x] 🟢 Node
     [ ] 🔴 Gemini Context Cache (GCC)
 
 ## Ingestion Engine
@@ -57,36 +57,26 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
     [ ] 🔴 `/join_session` - displays a Discord view with a dropdown menu of characters to choose from, selecting a character adds them to the session
     [ ] 🔴 `/begin_adventure` - locks previous session commands, hydrates session delta, and initiates the adventure
     [ ] 🔴 `/end_session` - saves active session delta to the database
-[ ] 🔴 Chat Parser Cog - listens for `@<botname> <message>` and dispatches player messages into player intent payloads: [in_game_action],[dialogue],[status_check],[meta_question],[OOC]
-    [ ] 🔴 [in_game_action] is dispatched to the rule adjudicator model
-    [ ] 🔴 [dialogue] is dispatched to the narrative roleplay model
-    [ ] 🔴 [status_check] is dispatched to a python that queries the session delta for the status of the character against the character registory
-    [ ] 🔴 [meta_question] is dispatched to the meta question model
-    [ ] 🔴 [OOC] is out of context or typos and is ignored by the bot and discarded
+[ ] 🔴 Chat Parser Cog - listens for `@<botname> <message>` and parses player messages into player intent payloads: [in_game_action],[dialogue],[status_check],[meta_question],[OOC]
 [ ] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?) - responds to dispatched messages from the chat parser cog 
 
 ## Game Engine/Pipeline
+[ ] 🔴 Handles the game logic and state by processesing intent from Cogs/SlashCommands/GeminiResponses
+    [ ] 🔴 Concurrency Lock state protection matrix preventing multi-event state corruption at the individual guild_id boundary.
+    [ ] 🔴 [in_game_action] is dispatched to the rule adjudicator model
+    [ ] 🔴 [dialogue] is dispatched to the narrative roleplay model
+    [ ] 🔴 [status_check] is dispatched to a python engine that queries the session delta for the status of the character against the character registory
+    [ ] 🔴 [meta_question] is dispatched to the meta question model
+    [ ] 🔴 [OOC] is out of context or typos and is ignored by the bot and discarded
+[ ] 🔴 Enforce deterministic state mutations 
 
-## 🔒 Concurrency Lock Manager
-[ ] 🔴 The state protection matrix preventing multi-event state corruption at the individual guild_id boundary.
-
-
-## ⚔️ Interaction Engine & Staged Actions
-The asynchronous UI component system handling buttons, modal responses, timeouts, and multi-click race conditions.
-
-[ ] 🔴 Test Case [Staged Action Registration]: Assert that initiating a rolling prompt or choice populates the StagedAction properties inside the active SessionDelta, complete with its specific callback payload and a dynamic UTC expiration timestamp.
-[ ] 🔴 Test Case [Atomic Deletion Protection]: Assert that when an interaction occurs (or a background expiration worker fires), the thread executes an atomic find_one_and_delete logic on the sub-document. Verify that the winner handles execution rights, while the losing thread receives None and exits cleanly.
-[ ] 🔴 Test Case [Automated Timeout Execution]: Mock an elapsed timeout clock and assert that a background cron/worker thread automatically identifies expired StagedAction entities, clears them out atomically, and pushes a "Time Expired" alert to the targeted Discord channel.
-[ ] 🔴 Test Case [Intent Parser Constraints]: Assert that the Intent Parser / Lock Manager throws an immediate user exception ("You have an action pending!") if a player types a new text command while an unresolved StagedAction button prompt is counting down in their session cache.
-
-## 🗳️ Overworld Voting Engine
-🔴 [ ] The asynchronous multi-user voting apparatus controlling safe macro-travel across points of interest.
-
+## Extra Features
+[ ] 🔴 ⚔️ Interaction Engine & Staged Actions -The asynchronous UI component system handling buttons, modal responses, timeouts, and multi-click race conditions.
+[ ] 🔴 🗳️ Overworld Voting Engine - The asynchronous multi-user voting apparatus controlling safe macro-travel across points of interest.
 
 ## 🤖 LLM Context Cache Layer
 Google Gemini Models paid tier APIs have implicit and explicit context caching to reduce token usage and allow for more complex interactions.
-[ ] 🔴 The world state model requires caching of the core rulebooks and the world state
-[ ] 🔴 The rules adjudication model requires caching of the core rulebooks
+[ ] 🔴 The rules adjudication model requires caching of the core rulebooks (PHB,DMG) and Spells
 [ ] 🔴 The narration/roleplay model requires caching of the adventure specific lorebooks and session delta
 [ ] 🔴 The DM assistant model requires caching of all of the above? (may skip implementing this to reduce costs)
 
