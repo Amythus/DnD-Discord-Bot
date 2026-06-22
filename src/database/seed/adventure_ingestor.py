@@ -124,7 +124,7 @@ async def _execute_reduce_hydration_sequential(map_metadata: AdventureMapDTO) ->
 
         # 15 RPM Limit Guard: Apply a strict 6-second delay between requests
         if current_num < total_nodes:
-            print(f"   ⏳ [Processing] Sleeping 6 seconds to stay below 15 RPM quota limit...")
+            print(f"   ⏳ [Guard] Sleeping 6 seconds to stay below 15 RPM quota limit...")
             await asyncio.sleep(6.0)
 
     print(f"✅ [Phase 2] Sequential database sync complete. Integrated {len(hydrated_nodes)} nodes.")
