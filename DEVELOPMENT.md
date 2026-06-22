@@ -1,10 +1,10 @@
 # This document acts as the active engineering backlog and flight checklist for the bot's core systems. 
-Progression follows a strict Red 🔴 -> Green 🟢 -> Refactor 🔵 Test-Driven Development paradigm.
+Progression follows a Red 🔴 -> Green 🟢 -> Refactor 🔵 Development paradigm.
 
 ## TDD State Key
 🔴 Red: Test suite written and failing as expected (or work not started).
 🟢 Green: Implementation passing all assertions.
-🔵 Refactor: Code clean, optimized, patterns unified; tests remain green.
+🔵 Refactor: Code works but requires refactoring
 
 ## Database and Discord Handshake
 [x] 🟢 Test Case [Database Initialization]: Assert that the database connection is established and the collections are created successfully.
@@ -28,10 +28,11 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
-[] 🔴 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
-    [] 🔴 Pass 1 (Generation): Gemini consumes the raw markdown segments and produces an array of NodeDTO objects populated with local data.
-    [] 🔴 Pass 2 (Validation): The Python ingestion loop parses those objects, commits them to MongoDB, and maps parent_node_id and exit target_node_id strings to guarantee graph integrity.
-    [] 🔴 Pass 3 (Map Compilation Phase): explicitly derive and compile the Adventure Root Blueprint Document inside static database
+[x] 🟢 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
+    [x] 🟢 Pass 1 (Map Discovery): Gemini parses over markdown adventure and creates a flat node array with node_ids
+    [x] 🟢 Pass 2 (Map Discovery): Iterates over the flat node array and hydrates each node with the appropriate data from the markdown adventure.
+    [x] 🟢 Pass 3 (Node Validation): Iterates over the flat node array and validates that each node has the appropriate pointers.
+    [x] 🟢 Pass 4 (Blueprint Compilation Phase): Assembles master blueprint containing all necessary fields to being an adventure.
 
 ## Seeding Database
 [] 🔴 Test Case [Seed Data]: Assert that the core rulebook markdown files in 5e repo can be parsed, cleaned, and inserted into database
@@ -49,33 +50,16 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 ## 📦 Discord Bot
 [x] 🟢 Test Case [Discord Bot]: Assert that the Discord bot is running and can be interacted with
 [x] 🔵 Discord Cogs to compartmentalize @commands, /commands, and event listeners
-    [] 🔴 Import Cog - imports characters from D&D Beyond uri
+    [x] 🟢 Import Cog - imports characters from D&D Beyond uri
     [] 🔴 Session Cog - handles session management (setup_session,join_session,begin_adventure,end_session)
     [] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?)
 
-## 🗺️ Spatial Routing Engine (Node Matrix)
-The read-only, in-memory Directed Graph representing world spaces, POIs, and rooms.
+## 🧠 Session Delta Game Engine
 
-[ ] 🔴 Test Case [Matrix Initialization]: Assert that seed_matrix.json/yaml parses perfectly into a strongly typed graph structure using Pydantic, failing if any node lacks required fields (node_id, node_type, connections).
-[ ] 🔴 Test Case [Orphan Connection Validation]: Assert that a validation exception is thrown during startup if any edge destination identifier (connection_id) points to a node_id that does not exist in the matrix.
-[ ] 🔴 Test Case [Room Transition Logic]: Given a player at node U5 (Room), assert that attempting to query adjacent nodes returns U6 if a directional edge exists, and throws an InvalidMovementException if a move is attempted to an unconnected node.
-[ ] 🔴 Test Case [Overworld Intersection Mapping]: Assert that the engine correctly identifies a target node type as OVERWORLD when intersecting specific edge thresholds, allowing downstream forks to intercept the execution thread.
-
-## 🧠 Session Delta Engine (Working Memory Buffer)
-The volatile high-speed cache caching active session states to protect persistent layers from intensive I/O operations.
-
-[ ] 🔴 Test Case [Layered Context Construction]: Assert that querying a character's state correctly builds a unified temporary view by overriding the base data layer (GlobalTracker) and spatial layer (Node Matrix) with the overlay variables stored in the active SessionDelta.
-[ ] 🔴 Test Case [Delta Mutation Accumulation]: Assert that applying sequential modifications (e.g., taking 3 damage, then gaining 10 gold) updates the local SessionDelta attributes correctly without committing any premature writes to the persistent MongoDB character documents.
-[ ] 🔴 Test Case [Relative Update Generation]: Assert that compiling the delta state for persistent flushing generates explicit MongoDB atomic relative operators (e.g., {"$inc": {"hp": -3}}) rather than a whole-document replacement object.
-[ ] 🔴 Test Case [Node Matrix Drift Validation]: Assert that invoking /resume_session with a frozen/suspended session delta validates the cached location_override ID against the active Node Matrix, throwing a descriptive structural mismatch exception if the map graph shifted during the downtime.
 
 ## 🔒 Concurrency Lock Manager
 The state protection matrix preventing multi-event state corruption at the individual guild_id boundary.
 
-[ ] 🔴 Test Case [Acquire Execution Lock]: Assert that when a command transaction initiates, is_processing_transaction flags as True for that specific guild_id, and any subsequent rapid-fire inputs from the same server are instantly and gracefully rejected or deferred.
-[ ] 🔴 Test Case [Command Lock Isolation]: Assert that holding an active transaction lock on Server Alpha (guild_id: 111) does not block, delay, or impact concurrent command execution flows originating from Server Beta (guild_id: 222).
-[ ] 🔴 Test Case [Asynchronous Lock Releasing]: Assert that the termination of an execution pipeline successfully reverts is_processing_transaction back to False, unblocking the text input parsing channel for the server.
-[ ] 🔴 Test Case [Lock Timeout Boundary]: Assert that if a complex command evaluation thread hangs or errors out internally, a background circuit breaker forces a release of the lock after a strict 3000ms threshold to prevent server-wide command paralysis.
 
 ## ⚔️ Interaction Engine & Staged Actions
 The asynchronous UI component system handling buttons, modal responses, timeouts, and multi-click race conditions.
@@ -88,17 +72,10 @@ The asynchronous UI component system handling buttons, modal responses, timeouts
 ## 🗳️ Overworld Voting Engine
 The asynchronous multi-user voting apparatus controlling safe macro-travel across points of interest.
 
-[ ] 🔴 Test Case [Overworld Travel Interception]: Assert that when a movement intent resolves to an OVERWORLD node type, the movement engine halts immediate displacement and routes the request into a new vote ledger inside the SessionDelta.
-[ ] 🔴 Test Case [Immediate Lock Release]: Assert that initializing an overworld travel vote releases the server's is_processing_transaction lock immediately, verifying that players can continue text chat and interact with other bot components while the poll is active.
-[ ] 🔴 Test Case [Vote Accumulation & Duplication Prevention]: Assert that a player can submit a vote to the active ledger, changing their choice iteratively, but cannot inject multiple parallel votes into the tally array.
-[ ] 🔴 Test Case [Majority Resolution Flow]: Given a party of 4, assert that when a 3rd vote matching the destination threshold is recorded, the engine instantly resolves the ledger, flushes the new location_override to the delta, and posts a travel-start embed.
 
 ## 🤖 LLM Context Cache Layer
 The rules adjudication component managing markdown data compaction and context caching anchors.
 
-[ ] 🔴 Test Case [Rulebook Concatenation Ordering]: Assert that running the rule ingestion pipeline retrieves individual chapters from MongoDB, sorts them perfectly by their hierarchical index, and builds a single unified, unfragmented text string (phb_text / dmg_text).
-[ ] 🔴 Test Case [Markdown Metadata Injection]: Assert that deep sub-headings lacking explicit parent context (e.g., ### Actions) are successfully caught by the processing script and prefixed into normalized structural headers (e.g., ### Combat: Actions) before transit.
-[ ] 🔴 Test Case [Context Cache Refresh Validation]: Assert that on bot boot-up, the systems perform a handshake with the Gemini Caching API to verify token validation hashes, catching expirations and re-binding the master rules strings cleanly if a cache miss occurs.
 
 ## Bugfixes
 [] must be strictly enforced You perform a synchronous "Call LLM -> Mutate State -> Re-build Context Matrix -> Call LLM" loop for every item in the queue.
