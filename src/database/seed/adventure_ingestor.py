@@ -1,18 +1,15 @@
 import os
 import json
-from typing import List, Dict, Any
-from pydantic import BaseModel, Field
 import asyncio
 from pathlib import Path
-from pymongo import UpdateOne
+from typing import List, Set, Tuple, Optional, Dict, Any
 
-from google.genai import types
-
-from database.connection import init_database  # Beanie async MongoDB initializer
-from database.models.spatial.node import GameNode  # Original Beanie Document model
-from database.models.campaign.adventure_blueprint import AdventureRootBlueprint
-from database.schemas.node_dto import NodeDTO  # Pydantic DTO for
+from database.connection import init_database  
+from database.models.spatial.node import GameNode  
+from database.models.campaign.adventure_blueprint import AdventureBlueprint
+from database.schemas.node_dto import NodeDTO  
 from database.schemas.adventure_dto import AdventureDTO
+from database.schemas.mapping_dto import AdventureMapDTO
 
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
@@ -21,177 +18,264 @@ from services.template_service import TemplateService
 docker exec -it dnd_discord_bot python -m database.seed.adventure_ingestor
 """
 
-async def ingest_adventure(file_name: str = "adventure.md"):
+# =====================================================================
+# PIPELINE PHASE HELPERS WITH RATE & CONCURRENCY MITIGATIONS
+# =====================================================================
+
+async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
     """
-    Orchestrates the 3-Pass Adventure Ingestion Pipeline.
-    Pass 1 consumes the entire markdown asset via Gemini.
-    Pass 2 iterates through the array one node at a time to validate graph integrity.
-    Pass 3 compiles the final master campaign blueprint template.
-    """    
-
-    await init_database()
-
-    # ===================================================
-    # PASS 1: Sequential Registration
-    # ===================================================
-
-    # 1. Initialize Clients via Shared Service
-    client = gemini_service.get_client()
-    # 2. Establish Relative Path Discovery
-    script_dir = Path(__file__).parent
-    target_md_path = script_dir / "adventures" / file_name
+    PHASE 1: Map Pass.
+    Discovers the structural campaign layout and returns an intermediate DTO 
+    containing localized room blocks and a complete global identifier list.
+    """
+    print("🤖 [Phase 1] Dispatching Map Discovery to Gemini API...")
     
-    if not target_md_path.exists():
-        print(f"❌ Error: Targeted markdown source file missing at: {target_md_path}")
-        return
-
-    print(f"📖 Reading adventure data from: {target_md_path.name}...")
-    adventure_text = target_md_path.read_text(encoding="utf-8")
-
-    # 3. Compile System Prompt Instructions
-    # Pass text to Jinja to compile the specialized input prompt
     template_engine = TemplateService()
-    compiled_prompt = template_engine.render_prompt("adventure_ingestion_prompt.jinja", adventure_text=adventure_text)
+    compiled_prompt = template_engine.render_prompt(
+        "adventure_ingestion_prompt.jinja", 
+        adventure_text=raw_text
+    )
 
-    print("🤖 Dispatching parsing request to Gemini API (Locked Structural Schema Mode)...")
+    map_response: AdventureMapDTO = await gemini_service.generate_structured_output(
+        model='gemini-3.1-flash-lite',
+        contents=compiled_prompt,
+        response_schema=AdventureMapDTO
+    )
+    
+    # Inject unique keys directly to guarantee context lookup robustness
+    map_response.node_registry = [item.node_id for item in map_response.discovered_nodes]
+    
+    print(f"✅ [Phase 1] Success: Discovered {len(map_response.discovered_nodes)} spatial layouts.")
+    return map_response
 
-    generation_response = await gemini_service.generate_structured_output(
-            model='gemini-3.1-flash-lite',
-            contents=compiled_prompt,
-            response_schema=AdventureDTO
+
+async def _hydrate_single_node_throttled(
+    adventure_id: str, 
+    discovered_item, 
+    node_registry: List[str], 
+    semaphore: asyncio.Semaphore
+) -> Optional[NodeDTO]:
+    """
+    PHASE 2 WORKER: Performs an isolated extraction for a single node segment.
+    Uses an asyncio.Semaphore to throttle concurrent network execution safely.
+    """
+    async with semaphore:
+        template_engine = TemplateService()
+        node_prompt = template_engine.render_prompt(
+            "node_hydration_prompt.jinja",
+            adventure_id=adventure_id,
+            node_id=discovered_item.node_id,
+            title=discovered_item.title,
+            node_registry=node_registry,
+            raw_text_segment=discovered_item.raw_text_segment
         )
-
-    adventure_id = generation_response.adventure_id
-    node_dto_array: List[NodeDTO] = generation_response.nodes
-
-    print(f"✅ Pass 1 Complete: Extracted {len(node_dto_array)} flat Node DTOs.")
-
-    print("🔗 Commencing iteration and inserting nodes into the database...")
-    
-    processed_node_ids = set()
-    
-    for idx, node_dto in enumerate(node_dto_array):
-        print(f"   ↳ Ingesting node [{idx + 1}/{len(node_dto_array)}]: {node_dto.node_id}")
         
         try:
-            # 1. Enforce validation guarantees by unpacking the verified DTO attributes
-            node_data = node_dto.model_dump()
-            
-            # 2. Check for unique key continuity to enforce map idempotency
-            existing_node = await GameNode.find_one({
-                "adventure_id": adventure_id,
-                "node_id": node_dto.node_id
-            })
-            
-            if existing_node:
-                # Sync updates onto the tracking record if it already exists
-                live_node = GameNode(**node_data)
-                live_node.id = existing_node.id
-                await live_node.replace()
-            else:
-                # Commit a clean flat graph segment to your MongoDB cluster
-                live_node = GameNode(**node_data)
-                await live_node.save()
-                
-            processed_node_ids.add(node_dto.node_id)
-            
+            node_dto: NodeDTO = await gemini_service.generate_structured_output(
+                model='gemini-3.1-flash-lite',
+                contents=node_prompt,
+                response_schema=NodeDTO
+            )
+            # Add a minor staggering delay inside the worker lane to prevent spiking
+            await asyncio.sleep(1.5)
+            return node_dto
         except Exception as e:
-            # Catch localized validation or DB schema errors without failing the complete chain
-            print(f"❌ Structural Failure on Node ID '{node_dto.node_id}': {str(e)}")
-            continue
+            print(f"❌ [Phase 2] Structural extraction failure on Node '{discovered_item.node_id}': {e}")
+            return None
 
-    # ===================================================
-    # PASS 2: VALIDATION & LINKING (One node at a time)
-    # ===================================================
 
-    print("\n🛡️ Running Pass 2: Topological check across navigation exit thresholds...")
-    broken_links_detected = 0
+async def _execute_reduce_hydration_concurrent(map_metadata: AdventureMapDTO) -> List[NodeDTO]:
+    """
+    PHASE 2: Parallel Reduce Pass.
+    Orchestrates high-speed concurrent generation using bound worker pools,
+    followed by an idempotent, non-destructive database upsert layer.
+    """
+    print("🔗 [Phase 2] Spawning throttled task worker pools for high-speed node hydration...")
+    
+    # Bound maximum concurrent open pipelines to 3 requests to respect remote rate limits
+    rate_semaphore = asyncio.Semaphore(3)
+    
+    tasks = [
+        _hydrate_single_node_throttled(
+            adventure_id=map_metadata.adventure_id,
+            discovered_item=discovered,
+            node_registry=map_metadata.node_registry,
+            semaphore=rate_semaphore
+        )
+        for discovered in map_metadata.discovered_nodes
+    ]
+    
+    # Fire off all lanes concurrently under semaphore orchestration
+    results = await asyncio.gather(*tasks)
+    hydrated_nodes: List[NodeDTO] = [node for node in results if node is not None]
+
+    print(f"💾 [Phase 2] Committing {len(hydrated_nodes)} nodes to database via non-destructive patching...")
+    
+    for node_dto in hydrated_nodes:
+        node_data = node_dto.model_dump()
+        
+        existing_node = await GameNode.find_one({
+            "adventure_id": map_metadata.adventure_id,
+            "node_id": node_dto.node_id
+        })
+
+        if existing_node:
+            # MITIGATION: Idempotency preservation. Protect active live state trackers.
+            preserved_state = getattr(existing_node, "room_states", {})
+            preserved_discovery = getattr(existing_node, "discovered_by", [])
+            
+            # Form dynamic object directly from payload data updates
+            updated_node = GameNode(**node_data)
+            updated_node.id = existing_node.id
+            
+            # Re-apply live states back over incoming configuration blue data
+            if preserved_state:
+                updated_node.room_states = preserved_state
+            if preserved_discovery:
+                updated_node.discovered_by = preserved_discovery
+                
+            await updated_node.replace()
+        else:
+            new_node = GameNode(**node_data)
+            await new_node.save()
+
+    print(f"✅ [Phase 2] Database sync sequence complete.")
+    return hydrated_nodes
+
+
+async def _validate_and_repair_topology(adventure_id: str, node_array: List[NodeDTO]) -> Tuple[Optional[str], int]:
+    """
+    PHASE 3: Topological Check & Graph Repair.
+    Identifies broken paths. Synthesizes automated fallback stubs for missing nodes
+    to protect the game engine from experiencing a runtime crash.
+    """
+    print("\n🛡️ [Phase 3] Auditing graph connectivity and running topological repairs...")
+    
+    processed_ids: Set[str] = {node.node_id for node in node_array}
+    broken_links_count = 0
     starting_node_id = None
 
-    for node_dto in node_dto_array:
-        # Only validate nodes that successfully passed database serialization in Pass 1
-        if node_dto.node_id not in processed_node_ids:
-            continue
-            
-        # Track the starting node for Pass 3 compilation rules (e.g. your CAMPAIGN_ROOT)
-        if node_dto.node_type == "CAMPAIGN_ROOT":
-            starting_node_id = node_dto.node_id
+    for node in node_array:
+        if node.node_type == "CAMPAIGN_ROOT":
+            starting_node_id = node.node_id
 
-        # 1. Validate Parent Adjacency Pointer
-        if node_dto.parent_node_id and node_dto.parent_node_id not in processed_node_ids:
-            print(f"  ⚠️ Link Warning: Node '{node_dto.node_id}' references an orphaned parent_node_id: '{node_dto.parent_node_id}'")
-            broken_links_detected += 1
-
-        # 2. Validate Navigation Exit Grid Targets
-        # Assumes node_dto.navigation contains a list or dictionary of exits/links
-        # Adjust the attribute extraction below to match your precise NavigationGrid Pydantic structure
-        if hasattr(node_dto, "navigation") and node_dto.navigation:
-            # Assuming your model has a structured array of exit objects: e.g., node_dto.navigation.exits
-            exits = getattr(node_dto.navigation, "exits", [])
+        if hasattr(node, "navigation") and node.navigation:
+            exits = getattr(node.navigation, "exits", [])
             for game_exit in exits:
                 target = getattr(game_exit, "target_node_id", None)
-                if target and target not in processed_node_ids:
-                    print(f"  ❌ Graph Break: Node '{node_dto.node_id}' points to a non-existent exit target: '{target}'")
-                    broken_links_detected += 1
+                
+                # MITIGATION: Handle broken links by instantly initializing fallback placeholders
+                if target and target not in processed_ids:
+                    print(f"  ⚠️ Topo Discontinuity: '{node.node_id}' points to missing target: '{target}'. Synthesizing fallback stub...")
+                    broken_links_count += 1
+                    
+                    # Formulate a safe, structural minimum fallback block
+                    stub_node = GameNode(
+                        adventure_id=adventure_id,
+                        node_id=target,
+                        title=f"Undiscovered Passage ({target.replace('_', ' ').title()})",
+                        node_type="ROOM",
+                        description="This path appears dark and unexplored. The spatial data was synthesized automatically via topological repair.",
+                        parent_node_id=node.node_id
+                    )
+                    
+                    # Verify if a placeholder is already deployed to keep db records clean
+                    existing_stub = await GameNode.find_one({"adventure_id": adventure_id, "node_id": target})
+                    if not existing_stub:
+                        await stub_node.save()
+                        # Add tracking record straight onto runtime arrays
+                        processed_ids.add(target)
 
-    print(f"✅ Pass 2 Complete. Validated structural integrity. Broken references found: {broken_links_detected}")
-    
-    # ===================================================
-    # PASS 3: MAP COMPILATION (Blueprint Assembly)
-    # ===================================================
+    return starting_node_id, broken_links_count
 
-    print("\n🏗️ Commencing Pass 3: Compiling master campaign blueprint template...")
-    
-    # Ensure a legitimate starting node exists from Pass 2 data checking
-    if not starting_node_id:
-        starting_node_id = list(processed_node_ids)[0] if processed_node_ids else "start_node"
-        print(f"⚠️ Warning: No CAMPAIGN_ROOT type detected. Defaulting entry room to: {starting_node_id}")
 
+async def _compile_master_blueprint(map_metadata: AdventureMapDTO, starting_node_id: str) -> bool:
+    """
+    PHASE 4: Blueprint Assembly.
+    Compiles global variables non-destructively over active entries.
+    """
+    print("\n🏗️ [Phase 4] Assembling global adventure orchestration blueprint...")
     try:
-        # Check if a blueprint for this module already exists to keep lookups idempotent
-        existing_blueprint = await AdventureRootBlueprint.find_one({
-            "adventure_id": adventure_id
+        existing_blueprint = await AdventureBlueprint.find_one({
+            "adventure_id": map_metadata.adventure_id
         })
-        
-        # Hydrate the master blueprint directly using parameters captured from generation_response
+
         blueprint_data = {
-            "adventure_id": adventure_id,
-            "module_name": generation_response.module_name,
+            "adventure_id": map_metadata.adventure_id,
+            "module_name": map_metadata.module_name,
             "starting_node_id": starting_node_id,
-            "initiator_prompt": generation_response.initiator_prompt,
-            "default_npc_dispositions": generation_response.default_npc_dispositions,
-            "initial_story_flags": generation_response.initial_story_flags,
-            "master_quest_registry": generation_response.master_quest_registry
+            "initiator_prompt": map_metadata.initiator_prompt,
+            "default_npc_dispositions": map_metadata.default_npc_dispositions,
+            "initial_story_flags": map_metadata.initial_story_flags,
+            "master_quest_registry": map_metadata.master_quest_registry
         }
-        
+
         if existing_blueprint:
-            print(f"🔄 Syncing blueprint updates onto existing token tracking record...")
-            live_blueprint = AdventureRootBlueprint(**blueprint_data)
+            print(f"🔄 Syncing blueprint configurations cleanly without erasing dynamic metrics...")
+            live_blueprint = AdventureBlueprint(**blueprint_data)
             live_blueprint.id = existing_blueprint.id
             await live_blueprint.replace()
         else:
-            print(f"💾 Saving new atomic campaign master template blueprint to database...")
-            live_blueprint = AdventureRootBlueprint(**blueprint_data)
+            print(f"💾 Saving new campaign master template blueprint to database...")
+            live_blueprint = AdventureBlueprint(**blueprint_data)
             await live_blueprint.save()
-            
-        print(f"🚀 Master Campaign Ready: '{generation_response.module_name}' is fully validated.")
-        
+
+        print(f"🚀 Master Campaign '{map_metadata.module_name}' is compiled successfully.")
+        return True
     except Exception as e:
-        print(f"❌ Critical Failure Compiling Pass 3 Campaign Template: {str(e)}")
-        return {"status": "FAILED_BLUEPRINT_COMPILATION", "error": str(e)}
+        print(f"❌ [Phase 4] Critical error writing campaign master blueprint: {e}")
+        return False
+
+# =====================================================================
+# MAIN ENTRYPOINT
+# =====================================================================
+
+async def ingest_adventure(file_name: str = "adventure.md") -> dict:
+    """
+    Orchestrator driving the refactored, robust ingestion pipeline.
+    """
+    await init_database()
+
+    script_dir = Path(__file__).parent
+    target_md_path = script_dir / "adventures" / file_name
+    if not target_md_path.exists():
+        print(f"❌ Error: Targeted markdown source file missing at: {target_md_path}")
+        return {"status": "FILE_NOT_FOUND"}
+
+    print(f"📖 Loading campaign source file: {target_md_path.name}...")
+    adventure_text = target_md_path.read_text(encoding="utf-8")
+
+    # Flow cleanly across modular pipeline boundaries
+    map_metadata = await _execute_map_discovery(adventure_text)
+    
+    hydrated_nodes = await _execute_reduce_hydration_concurrent(map_metadata)
+
+    starting_node_id, repaired_links = await _validate_and_repair_topology(
+        adventure_id=map_metadata.adventure_id, 
+        node_array=hydrated_nodes
+    )
+    
+    if not starting_node_id and hydrated_nodes:
+        starting_node_id = hydrated_nodes[0].node_id
+        print(f"⚠️ Topo Warning: No explicit CAMPAIGN_ROOT found. Fallback entry: {starting_node_id}")
+
+    blueprint_success = await _compile_master_blueprint(map_metadata, starting_node_id)
+    
+    if not blueprint_success:
+        return {"status": "FAILED_BLUEPRINT_COMPILATION"}
 
     return {
-        "adventure_id": adventure_id,
+        "adventure_id": map_metadata.adventure_id,
         "status": "SUCCESS",
-        "nodes_ingested_count": len(processed_node_ids),
+        "nodes_processed_count": len(hydrated_nodes),
+        "synthesized_repair_stubs": repaired_links,
         "starting_node_id": starting_node_id
     }
 
+
 async def main():
-    # FIXED: Establish asynchronous database loop initialization before routing records
     print("🔌 Initializing connection to MongoDB Cluster...")
-    # await init_database()
     await ingest_adventure()
 
 if __name__ == "__main__":
-    asyncio.run(ingest_adventure())
+    asyncio.run(main())
