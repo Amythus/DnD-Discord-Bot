@@ -53,7 +53,7 @@ The bot uses a multi-model AI pipeline with MongoDB to track game state and Gemi
                     │                   │ [Evaluate Next Action]                                                                            │     │     │
                     │                   │    │                                                                                              │     │     │
                     │                   │    ▼                                                                                              │     │     │
-                    │                   │ Rule Adjudicator (Gemini 3.5 Pro) ◄── (Pulls directly from pinned Rulebook Context Cache)         │     │     │
+                    │                   │ Rule Adjudicator (Gemini 3.5 Flash) ◄── (Pulls directly from pinned Rulebook Context Cache)         │     │     │
                     │                   │    │                                                                                              │     │     │
                     │                   │    ├──► [Returns is_legal: false] ──► SHORT CIRCUIT! Rollback context stack to Snapshot A         │     │     │
                     │                   │    │                                                                                              │     │     │
