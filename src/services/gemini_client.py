@@ -43,7 +43,7 @@ class GeminiService:
         base_config = {
             "response_mime_type": "application/json",
             "response_json_schema": response_schema.model_json_schema(),
-            "temperature": 0.1  # Enforce structural determinism
+            "temperature": 0.1,  # Enforce structural determinism
         }
         
         if config_overrides:
@@ -60,6 +60,14 @@ class GeminiService:
             contents=contents,
             config=api_config
         )
+
+        # 🔍 EXTRACT AND LOG TOKEN TELEMETRY HERE
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = response.usage_metadata
+            print(f"📊 [API Telemetry] Model: {model}")
+            print(f"   ↳ Input  Tokens (Prompt): {usage.prompt_token_count}")
+            print(f"   ↳ Output Tokens (Generated): {usage.candidates_token_count} ") #/ {base_config['max_output_tokens']}
+            print(f"   ↳ Total  Tokens Context:  {usage.total_token_count}")
 
         if not response.text:
             raise ValueError("The Gemini API engine returned an empty data response.")

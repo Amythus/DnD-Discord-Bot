@@ -21,29 +21,6 @@ from services.template_service import TemplateService
 docker exec -it dnd_discord_bot python -m database.seed.adventure_ingestor
 """
 
-# def flatten_pydantic_schema(schema_dict: dict) -> dict:
-#     """
-#     Recursively replaces all $ref pointers with their actual inline dictionary definitions.
-#     Removes the $defs block entirely to bypass google-genai SDK conversion deadlocks.
-#     """
-#     defs = schema_dict.pop("$defs", {})
-#     if not defs:
-#         return schema_dict
-
-#     def resolve_refs(node):
-#         if isinstance(node, dict):
-#             if "$ref" in node:
-#                 ref_key = node["$ref"].split("/")[-1]
-#                 # Deep copy the referenced structure and recursively resolve inside it
-#                 ref_body = dict(defs[ref_key])
-#                 return resolve_refs(ref_body)
-#             return {k: resolve_refs(v) for k, v in node.items()}
-#         elif isinstance(node, list):
-#             return [resolve_refs(item) for item in node]
-#         return node
-
-#     return resolve_refs(schema_dict)
-
 async def ingest_adventure(file_name: str = "adventure.md"):
     """
     Orchestrates the 3-Pass Adventure Ingestion Pipeline.
@@ -83,18 +60,6 @@ async def ingest_adventure(file_name: str = "adventure.md"):
             contents=compiled_prompt,
             response_schema=AdventureDTO
         )
-
-    # Attempting to use 3.5 flash
-    # raw_schema = AdventureDTO.model_json_schema()
-    # hardened_json_schema = flatten_pydantic_schema(raw_schema)
-    # generation_response = await client.aio.models.generate_content(
-    #     model='gemini-3.5-flash',
-    #     contents=compiled_prompt,
-    #     config=types.GenerateContentConfig(
-    #         response_mime_type="application/json",
-    #         response_json_schema=hardened_json_schema
-    #     )
-    # )
 
     adventure_id = generation_response.adventure_id
     node_dto_array: List[NodeDTO] = generation_response.nodes
