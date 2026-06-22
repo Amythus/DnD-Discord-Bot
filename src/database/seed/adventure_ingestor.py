@@ -9,7 +9,7 @@ from database.models.spatial.node import GameNode
 from database.models.campaign.adventure_blueprint import AdventureBlueprint
 from database.schemas.node_dto import NodeDTO  
 from database.schemas.adventure_dto import AdventureDTO
-from database.schemas.mapping_dto import AdventureMapDTO
+from database.schemas.mapping_dto import AdventureMapDTO, NodeDiscoveryItem
 
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
@@ -19,14 +19,13 @@ docker exec -it dnd_discord_bot python -m database.seed.adventure_ingestor
 """
 
 # =====================================================================
-# PIPELINE PHASE HELPERS WITH RATE & CONCURRENCY MITIGATIONS
+# PIPELINE PHASE HELPERS
 # =====================================================================
 
 async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
     """
     PHASE 1: Map Pass.
-    Discovers the structural campaign layout and returns an intermediate DTO 
-    containing localized room blocks and a complete global identifier list.
+    Discovers the structural campaign layout and returns an intermediate DTO.
     """
     print("🤖 [Phase 1] Dispatching Map Discovery to Gemini API...")
     
@@ -42,112 +41,100 @@ async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
         response_schema=AdventureMapDTO
     )
     
-    # Inject unique keys directly to guarantee context lookup robustness
+    # Pre-populate the registry flat index for downstream context awareness
     map_response.node_registry = [item.node_id for item in map_response.discovered_nodes]
     
     print(f"✅ [Phase 1] Success: Discovered {len(map_response.discovered_nodes)} spatial layouts.")
     return map_response
 
 
-async def _hydrate_single_node_throttled(
-    adventure_id: str, 
-    discovered_item, 
-    node_registry: List[str], 
-    semaphore: asyncio.Semaphore
-) -> Optional[NodeDTO]:
+async def _hydrate_single_node(adventure_id: str, discovered_item, node_registry: List[str]) -> Optional[NodeDTO]:
     """
-    PHASE 2 WORKER: Performs an isolated extraction for a single node segment.
-    Uses an asyncio.Semaphore to throttle concurrent network execution safely.
+    PHASE 2 WORKER: Submits a single node translation text slice to the LLM model.
     """
-    async with semaphore:
-        template_engine = TemplateService()
-        node_prompt = template_engine.render_prompt(
-            "node_hydration_prompt.jinja",
-            adventure_id=adventure_id,
-            node_id=discovered_item.node_id,
-            title=discovered_item.title,
-            node_registry=node_registry,
-            raw_text_segment=discovered_item.raw_text_segment
+    template_engine = TemplateService()
+    node_prompt = template_engine.render_prompt(
+        "node_hydration_prompt.jinja",
+        adventure_id=adventure_id,
+        node_id=discovered_item.node_id,
+        title=discovered_item.title,
+        node_registry=node_registry,
+        raw_text_segment=discovered_item.raw_text_segment
+    )
+    
+    try:
+        node_dto: NodeDTO = await gemini_service.generate_structured_output(
+            model='gemini-3.1-flash-lite',
+            contents=node_prompt,
+            response_schema=NodeDTO
         )
+        return node_dto
+    except Exception as e:
+        print(f"❌ [Phase 2] Structural extraction failure on Node '{discovered_item.node_id}': {e}")
+        return None
+
+
+async def _execute_reduce_hydration_sequential(map_metadata: AdventureMapDTO) -> List[NodeDTO]:
+    """
+    PHASE 2: Sequential Reduce Pass.
+    Processes nodes one by one with a mandatory 6-second rate limit backoff.
+    Performs non-destructive database patching to protect active runtime modifications.
+    """
+    print("🔗 [Phase 2] Starting sequential node hydration loop...")
+    hydrated_nodes: List[NodeDTO] = []
+    total_nodes = len(map_metadata.discovered_nodes)
+
+    for idx, discovered in enumerate(map_metadata.discovered_nodes):
+        current_num = idx + 1
+        print(f"   ↳ Processing [{current_num}/{total_nodes}]: {discovered.node_id}")
         
-        try:
-            node_dto: NodeDTO = await gemini_service.generate_structured_output(
-                model='gemini-3.1-flash-lite',
-                contents=node_prompt,
-                response_schema=NodeDTO
-            )
-            # Add a minor staggering delay inside the worker lane to prevent spiking
-            await asyncio.sleep(1.5)
-            return node_dto
-        except Exception as e:
-            print(f"❌ [Phase 2] Structural extraction failure on Node '{discovered_item.node_id}': {e}")
-            return None
-
-
-async def _execute_reduce_hydration_concurrent(map_metadata: AdventureMapDTO) -> List[NodeDTO]:
-    """
-    PHASE 2: Parallel Reduce Pass.
-    Orchestrates high-speed concurrent generation using bound worker pools,
-    followed by an idempotent, non-destructive database upsert layer.
-    """
-    print("🔗 [Phase 2] Spawning throttled task worker pools for high-speed node hydration...")
-    
-    # Bound maximum concurrent open pipelines to 3 requests to respect remote rate limits
-    rate_semaphore = asyncio.Semaphore(3)
-    
-    tasks = [
-        _hydrate_single_node_throttled(
+        # Linear blocking request
+        node_dto = await _hydrate_single_node(
             adventure_id=map_metadata.adventure_id,
             discovered_item=discovered,
-            node_registry=map_metadata.node_registry,
-            semaphore=rate_semaphore
+            node_registry=map_metadata.node_registry
         )
-        for discovered in map_metadata.discovered_nodes
-    ]
-    
-    # Fire off all lanes concurrently under semaphore orchestration
-    results = await asyncio.gather(*tasks)
-    hydrated_nodes: List[NodeDTO] = [node for node in results if node is not None]
-
-    print(f"💾 [Phase 2] Committing {len(hydrated_nodes)} nodes to database via non-destructive patching...")
-    
-    for node_dto in hydrated_nodes:
-        node_data = node_dto.model_dump()
         
-        existing_node = await GameNode.find_one({
-            "adventure_id": map_metadata.adventure_id,
-            "node_id": node_dto.node_id
-        })
+        if node_dto:
+            node_data = node_dto.model_dump()
+            existing_node = await GameNode.find_one({
+                "adventure_id": map_metadata.adventure_id,
+                "node_id": node_dto.node_id
+            })
 
-        if existing_node:
-            # MITIGATION: Idempotency preservation. Protect active live state trackers.
-            preserved_state = getattr(existing_node, "room_states", {})
-            preserved_discovery = getattr(existing_node, "discovered_by", [])
-            
-            # Form dynamic object directly from payload data updates
-            updated_node = GameNode(**node_data)
-            updated_node.id = existing_node.id
-            
-            # Re-apply live states back over incoming configuration blue data
-            if preserved_state:
-                updated_node.room_states = preserved_state
-            if preserved_discovery:
-                updated_node.discovered_by = preserved_discovery
+            if existing_node:
+                # Retain dynamic database overrides (e.g., fog of war, player state logs)
+                preserved_state = getattr(existing_node, "room_states", {})
+                preserved_discovery = getattr(existing_node, "discovered_by", [])
                 
-            await updated_node.replace()
-        else:
-            new_node = GameNode(**node_data)
-            await new_node.save()
+                updated_node = GameNode(**node_data)
+                updated_node.id = existing_node.id
+                
+                if preserved_state:
+                    updated_node.room_states = preserved_state
+                if preserved_discovery:
+                    updated_node.discovered_by = preserved_discovery
+                    
+                await updated_node.replace()
+            else:
+                new_node = GameNode(**node_data)
+                await new_node.save()
 
-    print(f"✅ [Phase 2] Database sync sequence complete.")
+            hydrated_nodes.append(node_dto)
+
+        # 15 RPM Limit Guard: Apply a strict 6-second delay between requests
+        if current_num < total_nodes:
+            print(f"   ⏳ [Processing] Sleeping 6 seconds to stay below 15 RPM quota limit...")
+            await asyncio.sleep(6.0)
+
+    print(f"✅ [Phase 2] Sequential database sync complete. Integrated {len(hydrated_nodes)} nodes.")
     return hydrated_nodes
 
 
 async def _validate_and_repair_topology(adventure_id: str, node_array: List[NodeDTO]) -> Tuple[Optional[str], int]:
     """
     PHASE 3: Topological Check & Graph Repair.
-    Identifies broken paths. Synthesizes automated fallback stubs for missing nodes
-    to protect the game engine from experiencing a runtime crash.
+    Identifies broken paths. Synthesizes fallback stubs for missing nodes.
     """
     print("\n🛡️ [Phase 3] Auditing graph connectivity and running topological repairs...")
     
@@ -164,12 +151,10 @@ async def _validate_and_repair_topology(adventure_id: str, node_array: List[Node
             for game_exit in exits:
                 target = getattr(game_exit, "target_node_id", None)
                 
-                # MITIGATION: Handle broken links by instantly initializing fallback placeholders
                 if target and target not in processed_ids:
                     print(f"  ⚠️ Topo Discontinuity: '{node.node_id}' points to missing target: '{target}'. Synthesizing fallback stub...")
                     broken_links_count += 1
                     
-                    # Formulate a safe, structural minimum fallback block
                     stub_node = GameNode(
                         adventure_id=adventure_id,
                         node_id=target,
@@ -179,11 +164,9 @@ async def _validate_and_repair_topology(adventure_id: str, node_array: List[Node
                         parent_node_id=node.node_id
                     )
                     
-                    # Verify if a placeholder is already deployed to keep db records clean
                     existing_stub = await GameNode.find_one({"adventure_id": adventure_id, "node_id": target})
                     if not existing_stub:
                         await stub_node.save()
-                        # Add tracking record straight onto runtime arrays
                         processed_ids.add(target)
 
     return starting_node_id, broken_links_count
@@ -211,7 +194,7 @@ async def _compile_master_blueprint(map_metadata: AdventureMapDTO, starting_node
         }
 
         if existing_blueprint:
-            print(f"🔄 Syncing blueprint configurations cleanly without erasing dynamic metrics...")
+            print(f"🔄 Syncing blueprint configurations cleanly...")
             live_blueprint = AdventureBlueprint(**blueprint_data)
             live_blueprint.id = existing_blueprint.id
             await live_blueprint.replace()
@@ -232,7 +215,7 @@ async def _compile_master_blueprint(map_metadata: AdventureMapDTO, starting_node
 
 async def ingest_adventure(file_name: str = "adventure.md") -> dict:
     """
-    Orchestrator driving the refactored, robust ingestion pipeline.
+    Orchestration core driving the robust, sequential ingestion pipeline.
     """
     await init_database()
 
@@ -245,11 +228,14 @@ async def ingest_adventure(file_name: str = "adventure.md") -> dict:
     print(f"📖 Loading campaign source file: {target_md_path.name}...")
     adventure_text = target_md_path.read_text(encoding="utf-8")
 
-    # Flow cleanly across modular pipeline boundaries
+    # Linear Phase Execution
+    # Phase 1 - Map Discovery
     map_metadata = await _execute_map_discovery(adventure_text)
-    
-    hydrated_nodes = await _execute_reduce_hydration_concurrent(map_metadata)
 
+    # Phase 2 - Node Hydration
+    hydrated_nodes = await _execute_reduce_hydration_sequential(map_metadata)
+
+    # Phase 3 - Node Validation
     starting_node_id, repaired_links = await _validate_and_repair_topology(
         adventure_id=map_metadata.adventure_id, 
         node_array=hydrated_nodes
@@ -259,6 +245,7 @@ async def ingest_adventure(file_name: str = "adventure.md") -> dict:
         starting_node_id = hydrated_nodes[0].node_id
         print(f"⚠️ Topo Warning: No explicit CAMPAIGN_ROOT found. Fallback entry: {starting_node_id}")
 
+    # Phase 4 - Blueprint Compilation
     blueprint_success = await _compile_master_blueprint(map_metadata, starting_node_id)
     
     if not blueprint_success:

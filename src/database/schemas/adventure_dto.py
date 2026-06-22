@@ -7,15 +7,30 @@ class AdventureDTO(BaseModel):
     The finalized, fully-hydrated campaign data structure consumed 
     by the core game engine.
     """
-    adventure_id: str = Field(description="Unique snake_case campaign grouping token.")
-    module_name: str = Field(description="Clean display title for Discord dropdown configurations.")
-    initiator_prompt: str = Field(description="Cinematic introductory hook text.")
-    
-    default_npc_dispositions: Dict[str, str] = Field(default_factory=dict)
-    initial_story_flags: Dict[str, bool] = Field(default_factory=dict)
-    master_quest_registry: List[Dict[str, Any]] = Field(default_factory=list)
-    
-    nodes: List[NodeDTO] = Field(description="The complete array of flat campaign locations.")
+    adventure_id: str = Field(
+        description="Unique snake_case campaign grouping token."
+    )
+    module_name: str = Field(
+        description="Clean, user-facing title used to build Discord dropdown selects."
+    )
+    initiator_prompt: str = Field(
+        description="Cinematic introductory text used by the parser to anchor player context."
+    )
+    default_npc_dispositions: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Pre-seeded default stance mappings (e.g., {'klarg_the_bugbear': 'HOSTILE'}) HOSTILE , INDIFFERENT , FRIENDLY"
+    )
+    initial_story_flags: Dict[str, bool] = Field(
+        default_factory=dict,
+        description="Master global switches (e.g., {'sildar_rescued': False, 'supply_wagon_delivered': False}) to initialize state machines."
+    )
+    master_quest_registry: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="The complete baseline array of campaign tasks, tracking structural prerequisites and rewards."
+    )
+    nodes: List[NodeDTO] = Field(
+        description="The complete array of flat campaign locations."
+    )
 
     model_config = ConfigDict(
         extra='forbid',
