@@ -4,7 +4,7 @@ import httpx
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
 from database.models.identity.character import Character
-from database.schemas.character_dto import DDBParsedCharacterDTO
+from database.schemas.character_dto import CharacterDTO
 from database.models.identity.registry import PlayerRegistry 
 
 class DDBIngestorService:
@@ -44,7 +44,7 @@ class DDBIngestorService:
         parsed_dto = await gemini_service.generate_structured_output(
             model='gemini-3.1-flash-lite',
             contents=compiled_prompt,
-            response_schema=DDBParsedCharacterDTO 
+            response_schema=CharacterDTO 
         )
 
         # Registry Handshake with character-player registry

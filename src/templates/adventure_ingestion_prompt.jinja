@@ -1,8 +1,16 @@
-You are an expert dungeon master data-architect. Your task is to analyze the following raw markdown adventure section and translate its structural spaces, rooms, connections, and POIs into a series of flat layout blocks.
+You are an expert Virtual Dungeon Master and game data architect. Your sole task is to analyze the raw markdown adventure text provided below and extract its layout into a flat adjacency list structure.
 
-Review the original text carefully to capture environmental notes, descriptions, and exits accurately.
+### CORE EXTRACTION PARAMS:
+1. EXHAUSTIVE EXTRACTION: Parse every unique room, point of interest, overworld district, or area explicitly described or mentioned as an exit target. No locations may be omitted.
+2. GRAPH INTEGRITY (BIDIRECTIONAL ROBUSTNESS): Every connection path must map logically. If the text outlines a hallway leading from Room A to Room B, flag Room B's navigation grid with a valid connection heading back to Room A, unless explicitly described as a one-way path (e.g., a slide trap, sudden drop-off, or teleportation gate).
+3. DETERMINISTIC ID MAPPING: All node identification keys must be formatted strictly in clean `snake_case` derived from the room's name (e.g., "Area 1: Entry Cavern" becomes "area_1_entry_cavern").
+4. STUB RESOLUTION: If an exit references a destination area that is not fully detailed within this text segment, you must still generate a placeholder item for that destination node to prevent graph orphan errors. Mark its type as an "INTERIOR_ROOM" with a short placeholder description.
+
+### DATA TRANSFORMATION RULES:
+- Map the descriptive narrative block and room box text perfectly into the baseline narration field. Do not summarize, truncate, or paraphrase the original flavor prose.
+- Categorize each location strictly into one of the available topological variants matching your architectural taxonomy configuration: [CAMPAIGN_ROOT, CITY_OVERWORLD, REGIONAL_DISTRICT, BUILDING_POI, INTERIOR_ROOM].
 
 ---
-RAW ADVENTURE TEXT START:
+RAW ADVENTURE TEXT:
 {{ adventure_text }}
 ---

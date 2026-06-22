@@ -8,10 +8,12 @@ from .spatial.node import GameNode
 from .session.delta import SessionDelta
 from .identity.character import Character
 from .identity.registry import PlayerRegistry
+from .campaign.adventure_blueprint import AdventureRootBlueprint
 # from .llm.cache import RulebookCacheMetadata
 
 # Export this list to database/connection.py for beanie.init_beanie()
 __all_models__ = [
+    AdventureRootBlueprint,
     ChannelConfig,
     Monster,
     Spell,

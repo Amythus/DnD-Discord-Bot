@@ -1,8 +1,8 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-from database.schemas.node_dto import NodeDTO  # Adjust import path accordingly
+from typing import List, Dict, Any
+from database.schemas.node_dto import NodeDTO 
 
-class AdventureGenerationPayload(BaseModel):
+class AdventureDTO(BaseModel):
     """
     The strict Pass 1 output schema capturing both flat spatial maps 
     and macro-level campaign constraints simultaneously.

@@ -1,7 +1,8 @@
+from beanie import Document
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 
-class AdventureRootBlueprint(BaseModel):
+class AdventureRootBlueprint(Document):
     """
     The master blueprint compiled during Pass 3.
     Acts as the immutable schema template for module instantiation.
@@ -31,3 +32,6 @@ class AdventureRootBlueprint(BaseModel):
     model_config = ConfigDict(
         extra='forbid'
     )
+
+    class Settings:
+        name = "adventure_blueprints" # Explicit collection name
