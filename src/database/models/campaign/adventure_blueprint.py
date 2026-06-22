@@ -2,7 +2,7 @@ from beanie import Document
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Dict, Any, Optional
 
-class AdventureRootBlueprint(Document):
+class AdventureBlueprint(Document):
     """
     The master blueprint compiled during Pass 3.
     Acts as the immutable schema template for module instantiation.
