@@ -54,8 +54,7 @@ class GeminiService:
 
         # 2. Execute call via the raw under-the-hood engine loops
         # If your environment requires async/await loop calls, verify if client uses:
-        # response = await client.aio.models.generate_content(...)
-        response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             model=model,
             contents=contents,
             config=api_config

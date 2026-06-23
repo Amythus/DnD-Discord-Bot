@@ -1,14 +1,32 @@
-You are an expert Virtual Dungeon Master and game data architect. Your sole task is to analyze the raw markdown adventure text provided below and extract its layout into a flat adjacency list structure.
+You are an expert Virtual Dungeon Master and professional game data architect. 
+Your sole task is to analyze the raw markdown adventure text provided below and extract its overarching layout, campaign settings, and structural boundaries into a single JSON object matching the `AdventureMapDTO` schema structure.
 
 ### CORE EXTRACTION PARAMS:
-1. EXHAUSTIVE EXTRACTION: Parse every unique room, point of interest, overworld district, or area explicitly described or mentioned as an exit target. No locations may be omitted.
-2. GRAPH INTEGRITY (BIDIRECTIONAL ROBUSTNESS): Every connection path must map logically. If the text outlines a hallway leading from Room A to Room B, flag Room B's navigation grid with a valid connection heading back to Room A, unless explicitly described as a one-way path (e.g., a slide trap, sudden drop-off, or teleportation gate).
-3. DETERMINISTIC ID MAPPING: All node identification keys must be formatted strictly in clean `snake_case` derived from the room's name (e.g., "Area 1: Entry Cavern" becomes "area_1_entry_cavern").
-4. STUB RESOLUTION: If an exit references a destination area that is not fully detailed within this text segment, you must still generate a placeholder item for that destination node to prevent graph orphan errors. Mark its type as an "INTERIOR_ROOM" with a short placeholder description.
+1. DETERMINISTIC DISCOVERY (`node_registry` & `discovered_nodes`):
+   - Locate every single unique room, point of interest, overworld district, or area explicitly described.
+   - For every entry, define a clean `snake_case` identifier string (`node_id`) derived from its heading name (e.g., "#### U1. Truss Bridge" becomes "truss_bridge_u1").
+   - Extract the entire raw markdown text segment corresponding to that section into `raw_text_segment`. Do not summarize, alter, truncate, or drop any text.
 
-### DATA TRANSFORMATION RULES:
-- Map the descriptive narrative block and room box text perfectly into the baseline narration field. Do not summarize, truncate, or paraphrase the original flavor prose.
-- Categorize each location strictly into one of the available topological variants matching your architectural taxonomy configuration: [CAMPAIGN_ROOT, CITY_OVERWORLD, REGIONAL_DISTRICT, BUILDING_POI, INTERIOR_ROOM].
+2. SHALLOW EDGE GRAPH NAVIGATION (`shallow_edges`):
+   - For each area discovered, locate all references to movement options, adjacent rooms, paths, or text-implied exits.
+   - For each directional option or path keyword discovered (e.g., "enter", "north", "down"), populate a `MapEdgeDTO`.
+   - Track the precise target text phrasing under `rough_target_description`.
+   - Ingest the corresponding matching `snake_case` target ID from your compiled `node_registry` list into `inferred_target_node_id` to establish clean relational graph connectivity boundaries.
+
+3. GLOBAL CAMPAIGN BLUEPRINT COMPILATION:
+   ...
+3. GLOBAL CAMPAIGN BLUEPRINT COMPILATION:
+   - `adventure_id`: Define a globally unique snake_case identifier for the entire document module (e.g., "burnock_mill").
+   - `global_behavior_triggers`: Extract conditions or scripts that override localized environments across the entire campaign scope. Whenever populating `execution_effects` inside these triggers, you must output objects containing strictly `effect_target` (the system property string) and `set_value` (the value).
+     * Format Example: {"effect_target": "global_state.threat_level", "set_value": "HIGH"}
+   - `module_name`: Extract or create a clean, formal display title for configurations.
+   - `initiator_prompt`: Generate a structural system context text summarizing the environment, atmosphere, and mechanics to orient subsequent LLM sub-routers.
+   - `story_hook`: Extract the prominent player-facing introductory hook or narrative flavor text that sets the campaign scene when published to an endpoint.
+   - `default_npc_dispositions`: Identify factions, monster groups, or key families, and assign global alignments (`HOSTILE`, `NEUTRAL`, `FRIENDLY`).
+   - `initial_story_flags`: Populate structural tracking keys initialized to `false` for any major narrative milestones or environment toggles implied globally.
+
+### MANDATORY OUTPUT COMPLIANCE:
+- Output raw structured data ready for immediate code parsing. Do not append an introduction, explanatory text, preamble, or summary notes.
 
 ---
 RAW ADVENTURE TEXT:
