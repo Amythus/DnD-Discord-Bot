@@ -27,7 +27,7 @@ Progression follows a Red 🔴 -> Green 🟢 -> Refactor 🔵 Development paradi
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
-[x] 🟢 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (three pass pipeline)
+[x] 🟢 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (multi pass pipeline)
     [x] 🟢 Pass 1 (Map Discovery): Gemini parses over markdown adventure and creates a flat node array with node_ids
     [x] 🟢 Pass 2 (Map Discovery): Iterates over the flat node array and hydrates each node with the appropriate data from the markdown adventure.
     [x] 🟢 Pass 3 (Node Validation): Iterates over the flat node array and validates that each node has the appropriate pointers.
@@ -51,12 +51,13 @@ Character sheets should be ingested from D&D Beyond and stored in the database. 
 
 ## Discord Cogs
 [x] 🟢 Import Cog - imports characters from D&D Beyond uri using `/import <ddb_character_link>`
-    [x] 🟢 DDB json response payload follows strict pydantic data transfer object, is linked with a discord user_id, and upserted into database
+    [x] 🟢 DDB json response payload follows strict pydantic data transfer object, is linked with a discord_user_id, and upserted into database
 [ ] 🔴 Session Cog - handles session management
     [ ] 🔴 `/start_session` - displays a Discord view with a dropdown menu of adventures to choose from, selecting an adventure creates a shell session and unlocks other session commands
     [ ] 🔴 `/join_session` - displays a Discord view with a dropdown menu of characters to choose from, selecting a character adds them to the session
     [ ] 🔴 `/begin_adventure` - locks previous session commands, hydrates session delta, and initiates the adventure
     [ ] 🔴 `/end_session` - saves active session delta to the database
+    [ ] 🔴 `/resume_session` - displays a Discord view with a dropdown menu of saved session deltas that belong to the user
 [ ] 🔴 Chat Parser Cog - listens for `@<botname> <message>` and parses player messages into player intent payloads: [in_game_action],[dialogue],[status_check],[meta_question],[OOC]
 [ ] 🔴 DM Assistant Cog - handles @bot questions about meta gamestate (e.g. What NPC are we looking for?) - responds to dispatched messages from the chat parser cog 
 
