@@ -27,11 +27,11 @@ Progression follows a Red 🔴 -> Green 🟢 -> Refactor 🔵 Development paradi
 Character sheets should be ingested from D&D Beyond and stored in the database. Campaigns/Adventures should be ingested from 5e tools and stored in the database. 
 [x] 🟢 Test Case [Character Ingestion]: Assert that a character can be ingested from D&D Beyond and stored in the database.
 [x] 🟢 Refactor DBB Ingestor with Pydantic Data Transfer Objects (DTOs)
-[x] 🟢 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (multi pass pipeline)
-    [x] 🟢 Pass 1 (Map Discovery): Gemini parses over markdown adventure and creates a flat node array with node_ids
-    [x] 🟢 Pass 2 (Map Discovery): Iterates over the flat node array and hydrates each node with the appropriate data from the markdown adventure.
-    [x] 🟢 Pass 3 (Node Validation): Iterates over the flat node array and validates that each node has the appropriate pointers.
-    [x] 🟢 Pass 4 (Blueprint Compilation Phase): Assembles master blueprint containing all necessary fields to being an adventure.
+[ ] 🔴 Test Case [Campaign Ingestion]: Assert that the adventure can be ingested from 5e tools markdown or pdf (multi pass pipeline)
+    [ ] 🔴 Pass 1 (Map Discovery): Gemini parses over markdown adventure and creates a flat node array with node_ids and exit pointers
+    [ ] 🔴 Pass 2 (Mechanical Entities): Iterates over the flat node array and hydrates each node with the hard mechnical entities
+    [ ] 🔴 Pass 3 (Narrative Entities): Iterates over the flat node array and hydrates each node with the narrative/atmospheric entities
+    [ ] 🔴 Pass 4 (Blueprint Compilation Phase): Assembles master blueprint containing all necessary fields to begin an adventure.
 
 ## Seeding Database
 [ ] 🔴 Test Case [Seed Data]: Assert that the core rulebook markdown files in 5e repo can be parsed, cleaned, and inserted into database

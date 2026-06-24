@@ -30,7 +30,7 @@ async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
     
     template_engine = TemplateService()
     compiled_prompt = template_engine.render_prompt(
-        "adventure_ingestion_prompt.jinja", \
+        "adventure_mapping_prompt.jinja", \
         adventure_text=raw_text
     )
 
