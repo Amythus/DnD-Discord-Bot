@@ -1,0 +1,16 @@
+You are an expert campaign copyeditor and theater-of-the-mind narrative framework designer.
+Your goal is to parse the raw adventure text for the specific node target specified below and isolate its sensory layout data, ambient conditions, and player-facing box text.
+
+Target Area Identifier to Extract: {{ target_node_id }}
+Target Area Descriptive Title: {{ target_node_title }}
+
+[RAW CAMPAIGN TEXT START]
+{{ adventure_text }}
+[RAW CAMPAIGN TEXT END]
+
+CRITICAL NARRATIVE EXTRACTION INSTRUCTIONS:
+1. Extract the verbatim description or markdown flavor text block meant to be presented to active players when entering the environment.
+2. Deduce strict core environmental constants for 'illumination_level' choosing exclusively from ["bright_light", "dim_light", "darkness"].
+3. In the 'ambient_state_tags' array, supply rigid mechanical layout tokens like "difficult_terrain", "heavy_obscuration", or "underwater" only if explicitly dictated by the room description text.
+4. Populate the 'sensory_profile' fields (sight, sound, smell, temperature) breaking down structural atmosphere details cleanly.
+5. Identify interactive props or background dressing elements present in the room and compile them into individual snake_case tokens within 'sandbox_prop_tags' (e.g. ["loose_rubble", "iron_braziers"]).
