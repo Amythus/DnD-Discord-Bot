@@ -1,15 +1,15 @@
-You are an expert tabletop rules compiler and automation assistant. 
-Your role is to analyze a raw adventure module text block and extract the rules, encounters, rewards, and mechanisms present *only* for the specific localized area target specified below.
+You are an expert tabletop rules compiler.
 
-Target Area Identifier to Extract: {{ target_node_id }}
-Target Area Descriptive Title: {{ target_node_title }}
-
-[RAW CAMPAIGN TEXT START]
+[FULL ADVENTURE DATA]
 {{ adventure_text }}
-[RAW CAMPAIGN TEXT END]
+[END DATA]
 
-CRITICAL EXTRACTION INSTRUCTIONS:
-1. Isolate the section of text that corresponds structurally to the Target Area.
-2. In the "combatants" array, break down headcounts and map custom titles to Core RAW equivalents (e.g., custom token reference "klarg_bugbear" aligns to base rulebook reference "bugbear").
-3. For hidden items or secret traps, extract exact, rigid Difficulty Class integers (e.g. dc_perception_secret). If a skill check is required, supply the snake_case skill tags (e.g. "athletics", "thieves_tools").
-4. If an environmental hazard or text passage requires a state change or operational pause in the game queue, generate an explicit, predictable 'engine_callback_key' string (e.g., "tripwire_rockfall_trap").
+TASK:
+Identify the text section corresponding to "{{ target_node_title }}" (Node ID: {{ target_node_id }}).
+Extract all mechanical entities found ONLY in that section.
+
+REQUIREMENTS:
+- Populate 'node_id' with EXACTLY: "{{ target_node_id }}"
+- If the text section mentions combatants (e.g., 'human brawler'), extract them. 
+- If you cannot find any information for this specific node, return null fields for lists, but DO NOT provide an empty node_id.
+- YOU MUST find the section titled "{{ target_node_title }}".

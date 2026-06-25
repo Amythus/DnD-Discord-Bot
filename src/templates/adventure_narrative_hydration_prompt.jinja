@@ -9,8 +9,8 @@ Target Area Descriptive Title: {{ target_node_title }}
 [RAW CAMPAIGN TEXT END]
 
 CRITICAL NARRATIVE EXTRACTION INSTRUCTIONS:
-1. Extract the verbatim description or markdown flavor text block meant to be presented to active players when entering the environment.
-2. Deduce strict core environmental constants for 'illumination_level' choosing exclusively from ["bright_light", "dim_light", "darkness"].
-3. In the 'ambient_state_tags' array, supply rigid mechanical layout tokens like "difficult_terrain", "heavy_obscuration", or "underwater" only if explicitly dictated by the room description text.
-4. Populate the 'sensory_profile' fields (sight, sound, smell, temperature) breaking down structural atmosphere details cleanly.
-5. Identify interactive props or background dressing elements present in the room and compile them into individual snake_case tokens within 'sandbox_prop_tags' (e.g. ["loose_rubble", "iron_braziers"]).
+1. Extract the verbatim description or markdown flavor text meant for players.
+2. Estimate the 'spatial_dimensions' (e.g., "20x30ft room with 10ft ceiling").
+3. Populate the 'sensory_profile' fields: sight, sound, smell, and temperature.
+4. Extract the 'narrative_history' if lore or backstory is mentioned for this node, otherwise return null.
+5. Identify background dressing and interactive props, returning them as a list of snake_case tokens in 'sandbox_prop_tags' (e.g., ["wooden_benches", "iron_braziers"]).

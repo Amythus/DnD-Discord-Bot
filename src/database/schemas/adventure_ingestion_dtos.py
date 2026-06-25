@@ -50,6 +50,29 @@ class MappingDTO(BaseModel):
     )
     nodes: List[SingleNodeSkeletonDTO] = Field(..., description="Full array of all discovered spatial nodes.")
 
+class MapEdgeDTO(BaseModel):
+    """
+    Shallow routing edge discovered during the macro map pass.
+    """
+    direction: str = Field(description="The relative direction or navigation vector (e.g., 'north', 'enter').")
+    rough_target_description: str = Field(description="The plain-text destination phrasing parsed from prose.")
+    inferred_target_node_id: Optional[str] = Field(
+        None, description="The matching destination snake_case ID from the master index registry map."
+    )
+
+class NodeDiscoveryItem(BaseModel):
+    """
+    Temporary pipeline model capturing localized text slices from the raw markdown.
+    """
+    node_id: str = Field(description="Unique snake_case identifier for the location.")
+    parent_id: Optional[str] = Field(
+        None, 
+        description="Optional parent region, level, or overarching map section key.",
+        examples=["cragmaw_hideout", "dungeon_level_1"]
+    )
+    title: str = Field(description="Display name of the room or area.")
+    raw_text_segment: str = Field(description="The exact raw text slice detailing this node.")
+
 
 # =====================================================================
 # PHASE 2: MECHANICAL HYDRATION DTO (Per-Node Extraction)
@@ -164,3 +187,5 @@ class AdventureBlueprintCompilationDTO(BaseModel):
     campaign_title: str = Field(..., description="The clean user-facing name of the overarching campaign.")
     initiator_prompt: str = Field(..., description="AI-facing systemic setup anchoring world-parsing logic boundaries.")
     story_hook: str = Field(..., description="Player-facing introductory splash narrative printed to Discord on session launch.")
+    nodes: List[NodeDiscoveryItem] # This is your list of 7-8 nodes
+    global_navigation_graph: List[MapEdgeDTO] # Optional: global-level logic

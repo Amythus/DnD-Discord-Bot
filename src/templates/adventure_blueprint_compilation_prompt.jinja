@@ -9,5 +9,5 @@ Expected Adventure Target Identifier: {{ expected_adventure_id }}
 CRITICAL GLOBAL COMPILATION INSTRUCTIONS:
 1. Provide the structural 'adventure_id' using exactly the lowercase snake_case value provided above: "{{ expected_adventure_id }}".
 2. Extract or infer a clean, high-fidelity user-facing 'campaign_title' for presentation to clients on Discord interfaces.
-3. Synthesize an AI-facing 'initiator_prompt'. This must contain robust systemic instructions, behavioral boundaries, and mechanical rulesets anchoring how downstream rule adjudicators and parsers interpret world state parameters for this module.
+3. Synthesize an AI-facing 'initiator_prompt'. Keep this under 500 tokens. It must act as a 'System Role' anchor that defines the tone (e.g., 'gritty dark fantasy'), the level of mechanical adherence (e.g., 'strict 5e rules'), and the primary goal for the DM Assistant (e.g., 'facilitate theatre-of-the-mind exploration').
 4. Extract or write a gripping, player-facing 'story_hook'. This acts as the thematic text or back-of-the-book narrative blurb printed directly to Discord when players initialize a new campaign session.
