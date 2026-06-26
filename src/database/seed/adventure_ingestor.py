@@ -47,7 +47,7 @@ async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
     
     # 2. Check for broken links
     broken_links = []
-    for node in map_metadata.discovered_nodes:
+    # for node in map_metadata.discovered_nodes:
         # Note: Depending on your current schema, you might need to extract 
         # exit IDs directly from the text segments or an edges property.
         # This is pseudo-code for the logic:
