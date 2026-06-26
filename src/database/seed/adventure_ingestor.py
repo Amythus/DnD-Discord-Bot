@@ -5,10 +5,12 @@ from pathlib import Path
 from typing import List, Set, Tuple, Optional, Dict, Any
 
 from database.connection import init_database  
-from database.models.spatial.node import GameNode  
+from database.models.campaign.adventure_node import GameNode  
 from database.models.campaign.adventure_blueprint import AdventureBlueprint
 from database.schemas.node_dto import NodeDTO  
 from database.schemas.mapping_dto import AdventureMapDTO, NodeDiscoveryItem
+from database.schemas.node_mechanical_dto import NodeMechanicalDTO
+from database.schemas.node_narrative_dto import NodeNarrativeDTO
 
 from services.gemini_client import gemini_service
 from services.template_service import TemplateService
@@ -30,7 +32,7 @@ async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
     
     template_engine = TemplateService()
     compiled_prompt = template_engine.render_prompt(
-        "adventure_ingestion_prompt.jinja", \
+        "adventure_mapping_prompt.jinja", \
         adventure_text=raw_text
     )
 
@@ -39,8 +41,24 @@ async def _execute_map_discovery(raw_text: str) -> AdventureMapDTO:
         contents=compiled_prompt,
         response_schema=AdventureMapDTO
     )
+
+    # 1. Collect all registered IDs
+    registered_ids = {node.node_id for node in map_metadata.discovered_nodes}
     
-    print(f"✅ [Phase 1] Map discovered successfully. Registered {len(map_metadata.node_registry)} distinct areas.")
+    # 2. Check for broken links
+    broken_links = []
+    for node in map_metadata.discovered_nodes:
+        # Note: Depending on your current schema, you might need to extract 
+        # exit IDs directly from the text segments or an edges property.
+        # This is pseudo-code for the logic:
+        # for exit in node.exits:
+        #     if exit.target_node_id not in registered_ids:
+        #         broken_links.append(f"{node.node_id} -> {exit.target_node_id}")
+
+    if broken_links:
+        print(f"❌ Map Discovery Failed: Found dangling references: {broken_links}")
+        raise ValueError("Invalid Topology: LLM generated links to non-existent nodes.")
+        
     return map_metadata
 
 
@@ -51,39 +69,61 @@ async def _execute_reduce_hydration_sequential(map_metadata: AdventureMapDTO) ->
     """
     print(f"⚡ [Phase 2] Launching sequential hydration loops over {len(map_metadata.discovered_nodes)} items...")
     template_engine = TemplateService()
-    hydrated_nodes: List[NodeDTO] = []
+    hydrated_nodes = []
 
     for idx, item in enumerate(map_metadata.discovered_nodes, start=1):
-        print(f"⏳ [{idx}/{len(map_metadata.discovered_nodes)}] Extracting properties for local area: {item.title} ({item.node_id})")
         
-        # FIXED: Explicitly inject node_registry to satisfy template cross-referencing constraints
-        compiled_prompt = template_engine.render_prompt(
-            "node_hydration_prompt.jinja",
-            adventure_id=map_metadata.adventure_id,
-            node_id=item.node_id,
-            title=item.title,
-            raw_text_segment=item.raw_text_segment,
-            node_registry=map_metadata.node_registry
-        )
-
         try:
-            node_dto: NodeDTO = await gemini_service.generate_structured_output(
-                model='gemini-3.1-flash-lite',
-                contents=compiled_prompt,
-                response_schema=NodeDTO
+            # PASS 1: Mechanical
+            print(f"⏳ [{idx}/{len(map_metadata.discovered_nodes)}] Mehanical Hydration: {item.title} | (1/2)")
+            mech_prompt = template_engine.render_prompt("node_mechanical.jinja", raw_text=item.raw_text_segment)
+            mechanical = await gemini_service.generate_structured_output(
+                model='gemini-3.1-flash-lite', contents=mech_prompt, response_schema=NodeMechanicalDTO
+            )
+
+            await asyncio.sleep(4.0) # Throttling
+
+            # PASS 2: Narrative
+            print(f"⏳ [{idx}/{len(map_metadata.discovered_nodes)}] Narrative Hydration: {item.title} | (2/2)")
+            narr_prompt = template_engine.render_prompt("node_narrative.jinja", raw_text=item.raw_text_segment)
+            narrative = await gemini_service.generate_structured_output(
+                model='gemini-3.1-flash-lite', contents=narr_prompt, response_schema=NodeNarrativeDTO
+            )
+    
+            node_type = "INTERIOR_ROOM" # Default value
+
+            # Assemble DTO with data from both passes
+            node_dto = NodeDTO(
+                adventure_id=map_metadata.adventure_id,
+                node_id=item.node_id,
+                node_type=node_type,
+                title=narrative.title,
+                
+                # Mechanical Mapping
+                navigation=mechanical.navigation,
+                environment=mechanical.environment,
+                encounters=mechanical.encounters,
+                spatial_triggers=mechanical.spatial_triggers,
+                environmental_traps=mechanical.environmental_traps,
+                treasure=mechanical.treasure,
+                node_metadata=mechanical.node_metadata,
+                
+                # Narrative Mapping
+                sensory_profile=narrative.sensory_profile,
+                npc_profiles=narrative.npc_profiles,
+                story_hooks=narrative.story_hooks,
+                quests=narrative.quests,
+                campaign_lore=narrative.campaign_lore,
+                llm_contexts=narrative.llm_contexts
             )
             hydrated_nodes.append(node_dto)
-            print(f"   ↳ Cleanly extracted {item.node_id} properties.")
             
-        except Exception as ex:
-            print(f"❌ [Phase 2 Error] Failed to process localized block {item.node_id} due to validation collapse: {ex}")
-            # Fault Isolation: Log localized data payload errors but preserve the rest of the campaign execution flow
-            continue
+        except Exception as e:
+            # Fault Isolation: Log specific failure and move to next node
+            print(f"❌ Failed to hydrate {item.node_id}: {str(e)}")
+            continue 
 
-        # CRITICAL CONFIGURATION CHANGE: Throttled pacing block set to exactly 5 seconds to bypass API token quotas
-        if idx < len(map_metadata.discovered_nodes):
-            print("   💤 Enforcing api burst quota sleep boundary for 5 seconds...")
-            await asyncio.sleep(5.0)
+        await asyncio.sleep(4.0) # Throttling
 
     return hydrated_nodes
 
@@ -110,14 +150,14 @@ async def _validate_and_repair_topology(adventure_id: str, node_array: List[Node
 
         # Validate that exits point to a real discovered room
         valid_exits = []
-        for egress in node.navigation.exits:
+        for egress in node.navigation.exits: 
             if egress.target_node_id in valid_ids:
                 valid_exits.append(egress)
             else:
                 print(f"   ⚠️ Broken Link: Exit matching target path '{egress.target_node_id}' points to a ghost segment. Purging exit.")
                 repaired_links += 1
-        node.navigation.exits = valid_exits
 
+        node.navigation.exits = valid_exits
 
         # Idempotent DB execution layout protecting index constraints from document index duplicate crashes
         existing_doc = await GameNode.find_one(

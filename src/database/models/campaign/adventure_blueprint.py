@@ -2,7 +2,7 @@ from beanie import Document
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from typing import List, Dict, Any, Optional
 # Mirror shared baseline blocks natively from node structures
-from database.models.spatial.node import FactionDisposition, ExecutionEffect
+from database.models.campaign.adventure_node import FactionDisposition, ExecutionEffect
 
 # =====================================================================
 # CAMPAIGN INFRASTRUCTURE SUB-MODELS
